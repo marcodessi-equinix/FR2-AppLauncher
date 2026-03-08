@@ -338,11 +338,68 @@ export const DashboardGrid: React.FC = () => {
     setDragDirection(null);
     if (!localGroups.length) return;
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
     const activeIdStr = String(active.id);
 
+    // ── Link drag: localGroups already reflects final state from handleDragOver ──
+    // Must be handled BEFORE the over.id guard because @dnd-kit/sortable can report
+    // over.id === active.id after a live arrayMove, which would skip the API call.
+    if (activeIdStr.startsWith('link-')) {
+      const activeLinkId = parseInt(activeIdStr.replace('link-', ''));
+
+      // Where did the link start?
+      const snapshot = dragStartSnapshotRef.current;
+      let sourceGroupIndex = -1;
+      snapshot.forEach((g, i) => {
+        if (g.links?.some(l => l.id === activeLinkId)) sourceGroupIndex = i;
+      });
+      if (sourceGroupIndex === -1) return;
+
+      // Where is the link now?
+      let destGroupIndex = -1;
+      localGroups.forEach((g, i) => {
+        if (g.links?.some(l => l.id === activeLinkId)) destGroupIndex = i;
+      });
+      if (destGroupIndex === -1) return;
+
+      // Skip if nothing actually changed
+      const snapshotLinks = snapshot[sourceGroupIndex]?.links || [];
+      const currentLinks = localGroups[destGroupIndex]?.links || [];
+      if (
+        sourceGroupIndex === destGroupIndex &&
+        snapshotLinks.map(l => l.id).join(',') === currentLinks.map(l => l.id).join(',')
+      ) return;
+
+      setGroups(localGroups);
+      queryClient.setQueryData(['dashboardData'], localGroups);
+
+      try {
+        const destGroup = localGroups[destGroupIndex];
+        const destLinks = destGroup.links || [];
+        const movedLink = destLinks.find(l => l.id === activeLinkId)!;
+        const linkOrder = destLinks.findIndex(l => l.id === activeLinkId);
+
+        if (sourceGroupIndex !== destGroupIndex) {
+          await api.put(`/links/${activeLinkId}`, {
+            group_id: destGroup.id,
+            title: movedLink.title, url: movedLink.url,
+            description: movedLink.description || '', icon: movedLink.icon || '',
+            order: linkOrder,
+          });
+          const srcLinks = localGroups[sourceGroupIndex].links || [];
+          if (srcLinks.length > 0) await api.put('/reorder/links', srcLinks.map((l, i) => ({ id: l.id, order: i })));
+        }
+        await api.put('/reorder/links', destLinks.map((l, i) => ({ id: l.id, order: i })));
+      } catch (err) {
+        console.error('Failed to save link reorder:', err);
+        setLocalGroups(dragStartSnapshotRef.current);
+        queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
+      }
+      return;
+    }
+
     // ── Group reordering: compute final position from snapshot + over.id ──
+    if (!over || active.id === over.id) return;
+
     if (activeIdStr.startsWith('group-')) {
       const activeGroupId = parseInt(activeIdStr.replace('group-', ''));
       const overIdStr = String(over.id);
@@ -373,53 +430,6 @@ export const DashboardGrid: React.FC = () => {
         await api.put('/reorder/groups', newOrder.map((g, i) => ({ id: g.id, order: i })));
       } catch (err) {
         console.error('Failed to reorder groups:', err);
-        setLocalGroups(dragStartSnapshotRef.current);
-        queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
-      }
-      return;
-    }
-
-    // ── Link drag: localGroups already reflects final state from handleDragOver ──
-    if (activeIdStr.startsWith('link-')) {
-      const activeLinkId = parseInt(activeIdStr.replace('link-', ''));
-
-      // Where did the link start?
-      const snapshot = dragStartSnapshotRef.current;
-      let sourceGroupIndex = -1;
-      snapshot.forEach((g, i) => {
-        if (g.links?.some(l => l.id === activeLinkId)) sourceGroupIndex = i;
-      });
-      if (sourceGroupIndex === -1) return;
-
-      // Where is the link now?
-      let destGroupIndex = -1;
-      localGroups.forEach((g, i) => {
-        if (g.links?.some(l => l.id === activeLinkId)) destGroupIndex = i;
-      });
-      if (destGroupIndex === -1) return;
-
-      setGroups(localGroups);
-      queryClient.setQueryData(['dashboardData'], localGroups);
-
-      try {
-        const destGroup = localGroups[destGroupIndex];
-        const destLinks = destGroup.links || [];
-        const movedLink = destLinks.find(l => l.id === activeLinkId)!;
-        const linkOrder = destLinks.findIndex(l => l.id === activeLinkId);
-
-        if (sourceGroupIndex !== destGroupIndex) {
-          await api.put(`/links/${activeLinkId}`, {
-            group_id: destGroup.id,
-            title: movedLink.title, url: movedLink.url,
-            description: movedLink.description || '', icon: movedLink.icon || '',
-            order: linkOrder,
-          });
-          const srcLinks = localGroups[sourceGroupIndex].links || [];
-          if (srcLinks.length > 0) await api.put('/reorder/links', srcLinks.map((l, i) => ({ id: l.id, order: i })));
-        }
-        await api.put('/reorder/links', destLinks.map((l, i) => ({ id: l.id, order: i })));
-      } catch (err) {
-        console.error('Failed to save link reorder:', err);
         setLocalGroups(dragStartSnapshotRef.current);
         queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
       }

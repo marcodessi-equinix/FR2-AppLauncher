@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Icon } from '@iconify/react';
-import { Search, Upload, Loader2, Info, X } from 'lucide-react';
+import { Search, Upload, Loader2, Info, X, Plus } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import api from '../../lib/api';
 
@@ -28,6 +28,9 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
   const [icons, setIcons] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadedIcons, setUploadedIcons] = useState<{ url: string; filename: string }[]>([]);
+  const [loadingUploaded, setLoadingUploaded] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Default icons for "Empty Search"
   const defaultIcons = useMemo(() => [
@@ -62,9 +65,20 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
     return () => clearTimeout(timer);
   }, [search, activeTab, defaultIcons]);
 
+  useEffect(() => {
+    if (activeTab !== 'upload') return;
+    setLoadingUploaded(true);
+    api.get<{ url: string; filename: string }[]>('/upload/')
+      .then(res => setUploadedIcons(res.data || []))
+      .catch(() => setUploadedIcons([]))
+      .finally(() => setLoadingUploaded(false));
+  }, [activeTab]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset input so the same file can be selected again
+    e.target.value = '';
 
     setUploading(true);
     const formData = new FormData();
@@ -72,6 +86,8 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
 
     try {
       const res = await api.post('/upload/icon', formData);
+      const newIcon = { url: res.data.url, filename: res.data.filename };
+      setUploadedIcons(prev => [newIcon, ...prev]);
       onChange(res.data.url);
       onClose();
     } catch (err) {
@@ -167,27 +183,59 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-border/40 rounded-xl p-8 text-center space-y-5 bg-muted/5 transition-colors hover:bg-muted/10">
-            <div className="p-4 bg-accent/10 rounded-full text-accent shadow-inner">
-              {uploading ? <Loader2 className="h-10 w-10 animate-spin" /> : <Upload className="h-10 w-10" />}
-            </div>
-            <div>
-              <p className="text-sm font-black uppercase tracking-tight">Icon Hochladen</p>
-              <p className="text-[11px] text-muted-foreground mt-1 max-w-[200px]">Nutze eigene Bilder für Links, die nicht in der Bibliothek sind.</p>
-            </div>
-            <label className="cursor-pointer relative mt-2 group">
-              <span className={cn(
-                "px-8 py-2.5 bg-accent text-accent-foreground rounded-lg text-xs font-bold hover:bg-accent/90 transition-colors inline-block shadow-lg shadow-accent/20 active:scale-95",
-                uploading && "opacity-50 pointer-events-none"
-              )}>
-                {uploading ? 'Wird hochgeladen...' : 'Durchsuchen'}
-              </span>
-              <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
+          <div className="flex flex-col h-full gap-3">
+            {/* Upload button row */}
+            <label className={cn("cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-accent/40 bg-accent/5 hover:bg-accent/10 transition-colors text-accent text-xs font-bold uppercase tracking-widest", uploading && "opacity-50 pointer-events-none")}>
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {uploading ? 'Wird hochgeladen...' : 'Neues Icon hochladen'}
+              <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
             </label>
-            <div className="pt-4 border-t border-border/20 w-full flex justify-between px-8 text-[9px] text-muted-foreground/60 font-medium">
-              <span>SVG, PNG, WEBP</span>
-              <span>MAX 2MB</span>
-            </div>
+
+            {/* Uploaded icons grid */}
+            {loadingUploaded ? (
+              <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-accent" />
+              </div>
+            ) : uploadedIcons.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border/40 rounded-xl p-8 text-center space-y-3 bg-muted/5">
+                <div className="p-4 bg-accent/10 rounded-full text-accent">
+                  <Upload className="h-8 w-8" />
+                </div>
+                <p className="text-xs font-black uppercase tracking-tight">Noch keine Icons hochgeladen</p>
+                <p className="text-[11px] text-muted-foreground max-w-[200px]">Lade dein erstes Icon hoch, um es hier zu sehen.</p>
+                <div className="pt-3 border-t border-border/20 w-full flex justify-between px-6 text-[9px] text-muted-foreground/60 font-medium">
+                  <span>SVG, PNG, WEBP</span>
+                  <span>MAX 2MB</span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-5 gap-2 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+                {uploadedIcons.map(icon => (
+                  <button
+                    key={icon.filename}
+                    type="button"
+                    onClick={() => { onChange(icon.url); onClose(); }}
+                    className={cn(
+                      "p-2 rounded-lg flex flex-col items-center justify-center gap-1.5 hover:bg-accent/10 transition-colors border border-transparent hover:border-accent/20 group h-[85px]",
+                      value === icon.url ? "bg-accent/15 border-accent/40 shadow-inner" : ""
+                    )}
+                    title={icon.filename}
+                  >
+                    <div className="h-10 w-10 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                      <img
+                        src={icon.url}
+                        alt={icon.filename}
+                        className="max-h-10 max-w-10 object-contain rounded"
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                    <span className="text-[8px] truncate w-full text-center font-bold text-muted-foreground opacity-60 group-hover:opacity-100">
+                      {icon.filename.replace(/^icon-\d+-\d+/, '').replace(/^-/, '') || icon.filename}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

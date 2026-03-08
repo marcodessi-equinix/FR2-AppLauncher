@@ -91,7 +91,7 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
       <div className="flex-shrink-0 h-14 w-14 flex items-center justify-center rounded-xl glass-surface group-hover:bg-primary/10 transition-colors duration-200 mb-3">
         <DynamicIcon 
           icon={link.icon} 
-          className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors duration-200" 
+          className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors duration-200" 
         />
       </div>
 
