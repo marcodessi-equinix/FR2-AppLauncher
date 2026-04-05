@@ -8,9 +8,33 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true';
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 10;
 const loginAttempts = new Map<string, { count: number; firstAttemptAt: number }>();
+
+function isHttpsRequest(req: express.Request): boolean {
+  const forwardedProto = req.header('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
+  return req.secure || forwardedProto === 'https';
+}
+
+function getAuthCookieBaseOptions(req: express.Request): express.CookieOptions {
+  const secure = COOKIE_SECURE || isHttpsRequest(req);
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? 'none' : 'lax',
+    path: '/',
+  };
+}
+
+function getAuthCookieOptions(req: express.Request): express.CookieOptions {
+  return {
+    ...getAuthCookieBaseOptions(req),
+    maxAge: COOKIE_MAX_AGE_MS,
+  };
+}
 
 function getClientKey(req: express.Request): string {
   const forwardedFor = req.headers['x-forwarded-for'];
@@ -66,12 +90,7 @@ router.post('/login', (req, res) => {
     adminSessionService.setActiveSession(sessionId);
     clearRateLimit(req);
 
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: COOKIE_SECURE,
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    res.cookie('auth_token', token, getAuthCookieOptions(req));
 
     return res.json({ success: true, sessionId });
   }
@@ -87,7 +106,7 @@ router.post('/logout', (req, res) => {
       adminSessionService.clearSession(payload.sessionId);
     } catch(e) {}
   }
-  res.clearCookie('auth_token');
+  res.clearCookie('auth_token', getAuthCookieBaseOptions(req));
   res.json({ success: true });
 });
 
@@ -117,7 +136,7 @@ router.get('/me', (req, res) => {
     
     // Check if session has been locked by someone else
     if (adminSessionService.isLockedFor(payload.sessionId)) {
-        res.clearCookie('auth_token');
+        res.clearCookie('auth_token', getAuthCookieBaseOptions(req));
         return res.json({ isAdmin: false });
     }
     

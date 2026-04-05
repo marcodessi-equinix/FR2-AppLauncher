@@ -23,6 +23,10 @@ const JWT_SECRET = process.env.JWT_SECRET || '';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const ALLOW_INSECURE_DEFAULTS = process.env.ALLOW_INSECURE_DEFAULTS === 'true';
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const requiredAllowedOrigins = [
+  'https://fr2-applauncher.equinix.com',
+  'http://fr2lxcops02.corp.equinix.com:9020',
+];
 const explicitAllowedOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -63,28 +67,34 @@ function normalizeOrigin(origin: string): string {
   return origin.trim().replace(/\/+$/, '');
 }
 
-function getForwardedValue(value: string | string[] | undefined): string | null {
-  if (!value) return null;
-  const raw = Array.isArray(value) ? value[0] : value;
-  const normalized = raw.split(',')[0].trim();
-  return normalized || null;
-}
-
-function getInferredOrigins(req: express.Request): string[] {
-  const host = getForwardedValue(req.headers['x-forwarded-host']) || getForwardedValue(req.headers.host);
-  if (!host) return [];
-
-  const proto = getForwardedValue(req.headers['x-forwarded-proto']);
-  if (proto) {
-    return [`${proto}://${host}`];
-  }
-
-  return [`http://${host}`, `https://${host}`];
-}
-
 export function createApp(): express.Express {
   const app = express();
   app.set('trust proxy', 1);
+  const allowedOrigins = new Set([
+    ...requiredAllowedOrigins,
+    ...explicitAllowedOrigins,
+    ...(NODE_ENV === 'production' ? [] : devAllowedOrigins),
+  ].map(normalizeOrigin));
+  const corsOptions: cors.CorsOptions = {
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const requestOrigin = normalizeOrigin(origin);
+      if (allowedOrigins.has(requestOrigin)) {
+        callback(null, origin);
+        return;
+      }
+
+      callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    optionsSuccessStatus: 204,
+  };
 
   app.use(helmet({
     contentSecurityPolicy: {
@@ -103,26 +113,8 @@ export function createApp(): express.Express {
     crossOriginResourcePolicy: false,
   }));
 
-  app.use(cors((req, callback) => {
-    const requestOrigin = normalizeOrigin(req.header('Origin') || '');
-    if (!requestOrigin) {
-      callback(null, { origin: true, credentials: true });
-      return;
-    }
-
-    const allowedOrigins = new Set([
-      ...explicitAllowedOrigins.map(normalizeOrigin),
-      ...getInferredOrigins(req).map(normalizeOrigin),
-      ...(NODE_ENV === 'production' ? [] : devAllowedOrigins.map(normalizeOrigin)),
-    ]);
-
-    if (allowedOrigins.has(requestOrigin)) {
-      callback(null, { origin: true, credentials: true });
-      return;
-    }
-
-    callback(new Error('Not allowed by CORS'));
-  }));
+  app.use(cors(corsOptions));
+  app.options(/.*/, cors(corsOptions));
   app.use(morgan('dev'));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
