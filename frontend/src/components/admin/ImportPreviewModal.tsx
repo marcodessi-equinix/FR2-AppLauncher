@@ -43,19 +43,28 @@ interface ImportPreviewModalProps {
 
 // --- Draggable Link Component ---
 const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }: { link: UILink; group: UIGroup; onSelect?: () => void; onDelete?: () => void; isGhosted?: boolean }) => {
+    const containerRef = React.useRef<HTMLDivElement | null>(null);
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: link.id,
         data: { link, sourceGroup: group }
     });
 
-    const style = transform ? {
-        transform: CSS.Translate.toString(transform),
-    } : undefined;
+    React.useLayoutEffect(() => {
+        if (!containerRef.current) {
+            return;
+        }
+
+        containerRef.current.style.transform = transform ? (CSS.Translate.toString(transform) ?? '') : '';
+    }, [transform]);
+
+    const setContainerNodeRef = React.useCallback((node: HTMLDivElement | null) => {
+        containerRef.current = node;
+        setNodeRef(node);
+    }, [setNodeRef]);
 
     return (
         <div 
-            ref={setNodeRef} 
-            style={style}
+            ref={setContainerNodeRef} 
             {...listeners}
             {...attributes}
             className={cn(
@@ -78,6 +87,8 @@ const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }
             {/* Selection Checkbox */}
             <input 
                 type="checkbox" 
+                title={`Select link ${link.title}`}
+                aria-label={`Select link ${link.title}`}
                 checked={!!link.selected} 
                 onClick={(e) => e.stopPropagation()}
                 onChange={(e) => {
@@ -111,6 +122,9 @@ const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }
             
             {group.isTarget && (
                 <button
+                    type="button"
+                    title={`Remove link ${link.title}`}
+                    aria-label={`Remove link ${link.title}`}
                     className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/20"
                     onClick={(e) => {
                         e.stopPropagation();
@@ -156,6 +170,8 @@ const DroppableGroup = React.memo(({ group, children, onToggle, isSource, onSele
                 
                 <input 
                     type="checkbox"
+                    title={`Select group ${group.title}`}
+                    aria-label={`Select group ${group.title}`}
                     checked={allSelected}
                     ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
                     onChange={(e) => {
@@ -550,12 +566,13 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
 
             await executeImport(finalData, false);
             setSuccessMessage('AppLauncher erfolgreich aktualisiert!');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            if (error?.message?.includes('413')) {
+            const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            if (message.includes('413')) {
                 setErrorMessage('Die Import-Datei ist zu groß. Bitte weniger Lesezeichen auf einmal importieren oder eine kleinere Datei verwenden.');
             } else {
-                setErrorMessage('Fehler beim Speichern: ' + (error?.message || 'Unbekannter Fehler'));
+                setErrorMessage('Fehler beim Speichern: ' + message);
             }
         } finally {
             setIsSubmitting(false);
@@ -590,8 +607,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
             onDragEnd={handleDragEnd}
         >
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-8 bg-black/80 backdrop-blur-lg">
-                <div className="w-full max-w-[92vw] h-[88vh] flex flex-col rounded-2xl overflow-hidden shadow-[0_32px_80px_-12px_rgba(0,0,0,0.8)] border border-white/[0.08]"
-                     style={{ background: 'linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%)' }}>
+                 <div className="w-full max-w-[92vw] h-[88vh] flex flex-col rounded-2xl overflow-hidden shadow-[0_32px_80px_-12px_rgba(0,0,0,0.8)] border border-white/[0.08] bg-[linear-gradient(145deg,hsl(var(--card))_0%,hsl(var(--background))_100%)]">
                     
                     {/* ── Header ── */}
                     <div className="relative px-6 py-4 border-b border-white/[0.07] flex items-center justify-between shrink-0 overflow-hidden">
@@ -631,7 +647,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                             </div>
                         </div>
 
-                        <Button variant="ghost" size="icon" onClick={onClose} className="relative rounded-xl hover:bg-white/5 shrink-0">
+                        <Button variant="ghost" size="icon" onClick={onClose} title="Close import preview" aria-label="Close import preview" className="relative rounded-xl hover:bg-white/5 shrink-0">
                             <X className="h-4 w-4" />
                         </Button>
                     </div>

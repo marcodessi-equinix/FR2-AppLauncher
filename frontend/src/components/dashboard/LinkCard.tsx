@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Edit, Trash2, Star } from 'lucide-react';
-import { toggleFavorite, isFavorite } from '../../utils/favoritesStorage';
 
 import { Link } from '../../types';
 import { DynamicIcon } from '../ui/DynamicIcon';
@@ -25,27 +24,21 @@ export interface LinkCardProps {
 
 const LinkCardComponent: React.FC<LinkCardProps> = ({ 
   link, 
-  isFavorite: initialIsFavorite, 
+  isFavorite,
   isAdmin, 
   editMode,
   onEdit, 
   onDelete,
   onToggleFavorite 
 }) => {
-  const [favorite, setFavorite] = useState(initialIsFavorite);
+  const hostname = React.useMemo(() => {
+    try {
+      return new URL(link.url).hostname.replace(/^www\./, '');
+    } catch {
+      return link.url;
+    }
+  }, [link.url]);
 
-  useEffect(() => {
-    const syncFavorite = () => {
-      setFavorite(isFavorite(link.id));
-    };
-
-    window.addEventListener("favoritesUpdated", syncFavorite);
-
-    return () => {
-      window.removeEventListener("favoritesUpdated", syncFavorite);
-    };
-  }, [link.id]);
-  
   const handleTileClick = (e: React.MouseEvent) => {
     if (editMode) return; 
     
@@ -53,53 +46,88 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
     window.open(link.url, '_blank', 'noopener,noreferrer');
   };
 
+  const handleTileKeyDown = (event: React.KeyboardEvent) => {
+    if (editMode) {
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      window.open(link.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const updatedFavs = toggleFavorite(link.id);
-    setFavorite(updatedFavs.includes(link.id));
-    onToggleFavorite(link.id);
+    void onToggleFavorite(link.id);
   };
 
   return (
     <Card 
       onClick={handleTileClick}
+      onKeyDown={handleTileKeyDown}
+      role="link"
+      tabIndex={editMode ? -1 : 0}
       className={cn(
-        "group relative flex flex-col items-center justify-center p-5 cursor-pointer h-full w-full",
+        "link-card group relative flex h-full w-full cursor-pointer flex-col justify-between p-5",
         "transition-all duration-200 ease-out",
-        "hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_hsl(var(--glow)/0.15)]",
-        "hover:border-primary/25 hover:bg-secondary/80",
+        "hover:-translate-y-1 hover:shadow-[0_18px_30px_-18px_hsl(var(--glow)/0.28)]",
+        "hover:border-primary/25 hover:bg-[hsl(var(--glass-highlight)/0.05)]",
         "focus-within:ring-2 focus-within:ring-primary/30 focus-within:outline-none",
-        "border-transparent",
-        favorite && "border-amber-400/20 bg-amber-400/[0.03] shadow-[0_0_12px_-4px_rgba(251,191,36,0.15)]"
+        "border-[hsl(var(--glass-border)/0.06)]",
+        isFavorite && "border-amber-400/25 bg-amber-400/[0.035] shadow-[0_0_18px_-8px_rgba(251,191,36,0.18)]"
       )}
     >
-      {/* Favorite Star */}
-      <button
-        onClick={handleToggleFavorite}
-        className={cn(
-          "absolute top-2 right-2 p-1 rounded-full transition-all duration-200 z-20",
-          favorite 
-            ? "text-amber-400 opacity-100 hover:scale-110 drop-shadow-[0_0_4px_rgba(251,191,36,0.5)]" 
-            : "text-muted-foreground/10 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-400/10"
+      <div className="absolute top-2 right-2 z-30 flex items-center gap-1">
+        {editMode && isAdmin && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-md text-muted-foreground hover:bg-black/40 hover:text-destructive"
+              onClick={(e) => { e.stopPropagation(); onDelete?.(link.id); }}
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-md text-muted-foreground hover:bg-black/40 hover:text-primary"
+              onClick={(e) => { e.stopPropagation(); onEdit?.(link); }}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+          </>
         )}
-        title={favorite ? "Remove from Favorites" : "Add to Favorites"}
-      >
-        <Star className={cn("h-3.5 w-3.5", favorite && "fill-current")} />
-      </button>
-      
-      {/* Icon */}
-      <div className="flex-shrink-0 h-14 w-14 flex items-center justify-center rounded-xl glass-surface group-hover:bg-primary/10 transition-colors duration-200 mb-3">
-        <DynamicIcon 
-          icon={link.icon} 
-          className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors duration-200" 
-        />
+
+        <button
+          onClick={handleToggleFavorite}
+          className={cn(
+            "p-1 rounded-full transition-all duration-200",
+            isFavorite 
+              ? "text-amber-400 opacity-100 hover:scale-110 drop-shadow-[0_0_4px_rgba(251,191,36,0.5)]" 
+              : "text-muted-foreground/10 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-400/10"
+          )}
+          title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+        >
+          <Star className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
+        </button>
+      </div>
+
+      <div className="flex items-start justify-between gap-3 pr-24">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--glass-border)/0.06)] bg-[hsl(var(--glass-highlight)/0.04)] transition-colors duration-200 group-hover:bg-primary/10">
+          <DynamicIcon 
+            icon={link.icon} 
+            className="h-9 w-9 text-muted-foreground transition-colors duration-200 group-hover:text-primary" 
+          />
+        </div>
       </div>
 
       {/* Content */}
-      <div className="text-center w-full px-1 relative z-10 flex flex-col gap-1">
+      <div className="relative z-10 mt-5 flex w-full flex-1 flex-col justify-end gap-3 px-1 text-left">
         <Tooltip>
           <TooltipTrigger asChild>
-            <h3 className="text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-200 line-clamp-2 overflow-hidden text-ellipsis w-full">
+            <h3 className="w-full overflow-hidden text-ellipsis text-base font-semibold leading-tight text-foreground transition-colors duration-200 line-clamp-2 group-hover:text-primary">
               {link.title}
             </h3>
           </TooltipTrigger>
@@ -109,33 +137,17 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
         </Tooltip>
         
         {link.description && (
-          <p className="text-xs text-muted-foreground/70 line-clamp-1 leading-relaxed font-medium">
+          <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground/75">
             {link.description}
           </p>
         )}
+
+        <div className="flex items-center justify-between gap-3 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+          <span className="truncate">{hostname}</span>
+          <span className="text-primary/0 transition-colors duration-200 group-hover:text-primary/75">Open</span>
+        </div>
       </div>
 
-      {/* Admin Controls */}
-       {editMode && isAdmin && (
-          <div className="absolute top-1.5 left-1.5 flex gap-0.5 opacity-100 z-30">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-black/40 rounded-md"
-              onClick={(e) => { e.stopPropagation(); onEdit?.(link); }}
-            >
-              <Edit className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-black/40 rounded-md"
-              onClick={(e) => { e.stopPropagation(); onDelete?.(link.id); }}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
     </Card>
   );
 };

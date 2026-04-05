@@ -46,6 +46,7 @@ services:
         condition: service_healthy
     networks:
       - fr2-applauncher
+      - proxy-network
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -57,6 +58,9 @@ services:
 
 networks:
   fr2-applauncher:
+  proxy-network:
+    name: ${PROXY_NETWORK:-nginx-proxy-manager_default}
+    external: true
 
 volumes:
   fr2-applauncher-data:

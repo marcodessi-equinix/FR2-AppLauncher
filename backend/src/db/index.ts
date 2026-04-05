@@ -1,6 +1,74 @@
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
+
+type SqlParameter = string | number | bigint | Uint8Array | null;
+
+export interface StatementResult {
+    changes: number;
+    lastInsertRowid: number;
+}
+
+export interface PreparedStatement {
+    run: (...params: SqlParameter[]) => StatementResult;
+    get: <T = unknown>(...params: SqlParameter[]) => T | undefined;
+    all: <T = unknown>(...params: SqlParameter[]) => T[];
+}
+
+export interface AppDatabase {
+    exec: (sql: string) => void;
+    pragma: (sql: string) => void;
+    prepare: (sql: string) => PreparedStatement;
+    transaction: <TArgs extends unknown[], TResult>(fn: (...args: TArgs) => TResult) => (...args: TArgs) => TResult;
+    close: () => void;
+}
+
+function normalizeResult(result: { changes: number | bigint; lastInsertRowid: number | bigint }): StatementResult {
+    return {
+        changes: Number(result.changes),
+        lastInsertRowid: Number(result.lastInsertRowid),
+    };
+}
+
+function createDatabase(filePath: string): AppDatabase {
+    const database = new DatabaseSync(filePath);
+
+    return {
+        exec(sql: string) {
+            database.exec(sql);
+        },
+        pragma(sql: string) {
+            database.exec(`PRAGMA ${sql}`);
+        },
+        prepare(sql: string): PreparedStatement {
+            const statement = database.prepare(sql);
+            return {
+                run: (...params: SqlParameter[]) => normalizeResult(statement.run(...params)),
+                get: <T = unknown>(...params: SqlParameter[]) => {
+                    const row = statement.get(...params);
+                    return row === null ? undefined : (row as T | undefined);
+                },
+                all: <T = unknown>(...params: SqlParameter[]) => statement.all(...params) as T[],
+            };
+        },
+        transaction<TArgs extends unknown[], TResult>(fn: (...args: TArgs) => TResult) {
+            return (...args: TArgs) => {
+                database.exec('BEGIN');
+                try {
+                    const result = fn(...args);
+                    database.exec('COMMIT');
+                    return result;
+                } catch (error) {
+                    database.exec('ROLLBACK');
+                    throw error;
+                }
+            };
+        },
+        close() {
+            database.close();
+        },
+    };
+}
 
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/applauncher.db');
 const dbDir = path.dirname(dbPath);
@@ -14,7 +82,7 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const db = new Database(dbPath);
+const db = createDatabase(dbPath);
 db.pragma('foreign_keys = ON');
 
 export async function runMigrations() {

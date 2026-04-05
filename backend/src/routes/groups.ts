@@ -44,7 +44,12 @@ router.post('/', requireAdmin, (req, res) => {
 
 // PUT update group
 router.put('/:id', requireAdmin, (req, res) => {
-  const { id } = req.params;
+  const idResult = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!idResult.success) {
+    return res.status(400).json({ error: 'Invalid group id' });
+  }
+
+  const id = idResult.data;
   const result = GroupSchema.safeParse(req.body);
   
   if (!result.success) {
@@ -74,7 +79,12 @@ router.put('/:id', requireAdmin, (req, res) => {
 
 // DELETE group
 router.delete('/:id', requireAdmin, (req, res) => {
-  const { id } = req.params;
+  const idResult = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!idResult.success) {
+    return res.status(400).json({ error: 'Invalid group id' });
+  }
+
+  const id = idResult.data;
 
   try {
     const stmt = db.prepare('DELETE FROM groups WHERE id = ?');

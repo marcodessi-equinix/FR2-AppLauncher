@@ -1,41 +1,59 @@
 import React from 'react';
-import { useStore } from '../store/useStore';
+import { useStore, Theme } from '../store/useStore';
 
 export const ThemeManager: React.FC = () => {
   React.useEffect(() => {
-    // 1. Initial Apply (No React State Dependency)
-    const storedTheme = window.localStorage.getItem('fr2-applauncher-storage');
-    let initialTheme = 'dark';
-    
-    if (storedTheme) {
+    const storageKey = 'fr2-applauncher-storage';
+    const root = document.documentElement;
+    let transitionTimeout: number | null = null;
+
+    const applyTheme = (theme: Theme) => {
+      root.classList.add('theme-switching');
+      root.classList.remove('dark', 'light', 'equinix');
+      root.classList.add(theme);
+      root.setAttribute('data-theme', theme);
+      root.style.colorScheme = theme;
+
+      if (transitionTimeout !== null) {
+        window.clearTimeout(transitionTimeout);
+      }
+
+      transitionTimeout = window.setTimeout(() => {
+        root.classList.remove('theme-switching');
+        transitionTimeout = null;
+      }, 180);
+    };
+
+    let initialTheme: Theme = 'dark';
+    const storedState = window.localStorage.getItem(storageKey);
+
+    if (storedState) {
       try {
-        const parsed = JSON.parse(storedTheme);
-        if (parsed.state && parsed.state.theme) {
-          initialTheme = parsed.state.theme;
+        const parsed = JSON.parse(storedState);
+        const storedTheme = parsed?.state?.theme;
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+          initialTheme = storedTheme;
+        } else if (parsed?.state && storedTheme === 'equinix') {
+          parsed.state.theme = 'dark';
+          window.localStorage.setItem(storageKey, JSON.stringify(parsed));
         }
-      } catch (e) {
-        console.error('Failed to parse theme', e);
+      } catch (error) {
+        console.error('Failed to normalize theme storage', error);
       }
     }
 
-    const applyTheme = (t: string) => {
-        const root = document.documentElement;
-        root.classList.remove('light', 'dark', 'equinix');
-        root.classList.add(t);
-        root.setAttribute('data-theme', t);
-        root.style.colorScheme = t === 'light' ? 'light' : 'dark';
-    };
-
     applyTheme(initialTheme);
 
-    // 2. Subscribe to store changes manually to avoid re-rendering THIS component
-    // We import the store instance directly to subscribe
-    const unsub = useStore.subscribe((state) => {
-        applyTheme(state.theme);
+    const unsubscribe = useStore.subscribe((state) => {
+      applyTheme(state.theme);
     });
 
     return () => {
-        unsub();
+      if (transitionTimeout !== null) {
+        window.clearTimeout(transitionTimeout);
+      }
+      root.classList.remove('theme-switching');
+      unsubscribe();
     };
   }, []);
 

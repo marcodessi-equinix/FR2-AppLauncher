@@ -7,6 +7,7 @@ RESET=$(tput sgr0 2>/dev/null || echo "")
 GREEN=$(tput setaf 2 2>/dev/null || echo "")
 RED=$(tput setaf 1 2>/dev/null || echo "")
 YELLOW=$(tput setaf 3 2>/dev/null || echo "")
+DEFAULT_PROXY_NETWORK="nginx-proxy-manager_default"
 
 generate_secret() {
     if command -v openssl >/dev/null 2>&1; then
@@ -51,6 +52,9 @@ else
     read -r -p "  Frontend-Port [9020]: " FRONTEND_PORT
     FRONTEND_PORT="${FRONTEND_PORT:-9020}"
 
+    read -r -p "  Proxy-Netzwerk [${DEFAULT_PROXY_NETWORK}]: " PROXY_NETWORK
+    PROXY_NETWORK="${PROXY_NETWORK:-$DEFAULT_PROXY_NETWORK}"
+
     read -r -p "  Admin-Passwort festlegen (Enter fuer zufaelliges Passwort): " ADMIN_PASS
     if [ -z "$ADMIN_PASS" ]; then
         ADMIN_PASS=$(generate_password)
@@ -67,6 +71,7 @@ DATABASE_PATH=/app/data/applauncher.db
 FRONTEND_URL=
 COOKIE_SECURE=false
 ALLOW_INSECURE_DEFAULTS=false
+PROXY_NETWORK=${PROXY_NETWORK}
 JWT_SECRET=${JWT_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASS}
 EOF
@@ -80,6 +85,19 @@ echo "${BOLD}[3/4] Datenverzeichnisse vorbereiten...${RESET}"
 mkdir -p data uploads/icons
 touch uploads/icons/.gitkeep
 echo "${GREEN}✓ Verzeichnisse 'data/' und 'uploads/icons/' bereit${RESET}"
+
+PROXY_NETWORK=$(grep '^PROXY_NETWORK=' .env | cut -d= -f2)
+PROXY_NETWORK="${PROXY_NETWORK:-$DEFAULT_PROXY_NETWORK}"
+
+echo ""
+echo "${BOLD}[3a/4] Proxy-Netzwerk pruefen...${RESET}"
+if podman network exists "$PROXY_NETWORK" >/dev/null 2>&1; then
+    echo "${GREEN}✓ Netzwerk '$PROXY_NETWORK' gefunden${RESET}"
+else
+    echo "${YELLOW}ℹ  Netzwerk '$PROXY_NETWORK' existiert noch nicht und wird erstellt...${RESET}"
+    podman network create "$PROXY_NETWORK" >/dev/null
+    echo "${GREEN}✓ Netzwerk '$PROXY_NETWORK' erstellt${RESET}"
+fi
 
 echo ""
 echo "${BOLD}[4/4] Container bauen und starten...${RESET}"
@@ -99,6 +117,7 @@ echo "======================================================${RESET}"
 echo ""
 echo "  Frontend: http://${HOST_NAME}:${FRONTEND_PORT:-9020}"
 echo "  Backend:  nur intern im Compose-Netz"
+echo "  Proxy-Netz: ${PROXY_NETWORK}"
 echo ""
 echo "  Update:   podman compose up -d --build"
 echo "  Stoppen:  podman compose down"

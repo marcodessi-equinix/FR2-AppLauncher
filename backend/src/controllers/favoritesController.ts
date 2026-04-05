@@ -1,8 +1,26 @@
 import { Request, Response } from 'express';
 import db from '../db/index';
+import { z } from 'zod';
+
+const FavoriteClientParamsSchema = z.object({
+  clientId: z.string().uuid(),
+});
+const AddFavoriteSchema = z.object({
+  clientId: z.string().uuid(),
+  linkId: z.number().int().positive(),
+});
+const RemoveFavoriteParamsSchema = z.object({
+  clientId: z.string().uuid(),
+  linkId: z.coerce.number().int().positive(),
+});
 
 export const getFavorites = (req: Request, res: Response) => {
-  const { clientId } = req.params;
+  const result = FavoriteClientParamsSchema.safeParse(req.params);
+  if (!result.success) {
+    return res.status(400).json({ error: 'Invalid client id' });
+  }
+
+  const { clientId } = result.data;
 
   try {
     const stmt = db.prepare('SELECT link_id FROM favorites WHERE client_id = ?');
@@ -16,11 +34,12 @@ export const getFavorites = (req: Request, res: Response) => {
 };
 
 export const addFavorite = (req: Request, res: Response) => {
-  const { clientId, linkId } = req.body;
-
-  if (!clientId || !linkId) {
-    return res.status(400).json({ error: 'Missing clientId or linkId' });
+  const result = AddFavoriteSchema.safeParse(req.body);
+  if (!result.success) {
+    return res.status(400).json({ error: 'Invalid favorite payload' });
   }
+
+  const { clientId, linkId } = result.data;
 
   try {
     const stmt = db.prepare('INSERT OR IGNORE INTO favorites (client_id, link_id) VALUES (?, ?)');
@@ -33,11 +52,12 @@ export const addFavorite = (req: Request, res: Response) => {
 };
 
 export const removeFavorite = (req: Request, res: Response) => {
-  const { clientId, linkId } = req.params;
-
-  if (!clientId || !linkId) {
-    return res.status(400).json({ error: 'Missing clientId or linkId' });
+  const result = RemoveFavoriteParamsSchema.safeParse(req.params);
+  if (!result.success) {
+    return res.status(400).json({ error: 'Invalid favorite identifier' });
   }
+
+  const { clientId, linkId } = result.data;
 
   try {
     const stmt = db.prepare('DELETE FROM favorites WHERE client_id = ? AND link_id = ?');

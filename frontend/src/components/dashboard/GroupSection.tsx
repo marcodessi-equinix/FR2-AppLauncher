@@ -39,6 +39,7 @@ const SortableLinkCard = React.memo(({ link, isAdmin, editMode, isFavorite, onEd
   onDelete: (id: number) => void;
   onToggleFavorite: (id: number) => void;
 }) => {
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const {
     attributes,
     listeners,
@@ -48,17 +49,26 @@ const SortableLinkCard = React.memo(({ link, isAdmin, editMode, isFavorite, onEd
     isDragging,
   } = useSortable({ id: `link-${link.id}`, disabled: !editMode, data: { groupId: link.group_id } });
 
-  const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-    height: '100%',
-    zIndex: isDragging ? 50 : 'auto',
-    position: isDragging ? 'relative' : undefined,
-  };
+  React.useLayoutEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    containerRef.current.style.transform = CSS.Translate.toString(transform) || '';
+    containerRef.current.style.transition = transition || '';
+    containerRef.current.style.opacity = isDragging ? '0.3' : '1';
+    containerRef.current.style.height = '100%';
+    containerRef.current.style.zIndex = isDragging ? '50' : 'auto';
+    containerRef.current.style.position = isDragging ? 'relative' : '';
+  }, [isDragging, transform, transition]);
+
+  const setContainerNodeRef = React.useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setNodeRef(node);
+  }, [setNodeRef]);
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setContainerNodeRef} {...attributes} {...listeners}>
       <LinkCard
         link={link}
         isFavorite={isFavorite}
@@ -120,7 +130,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
     <section 
       ref={setNodeRef}
       className={cn(
-        "group-section relative flex flex-col gap-4 rounded-xl border border-border/20 bg-card/30 p-4 md:p-5 transition-all duration-300",
+        "group-section relative flex flex-col gap-5 rounded-[28px] border border-[hsl(var(--glass-border)/0.07)] bg-[linear-gradient(180deg,hsl(var(--card)/0.62),hsl(var(--card)/0.34))] p-5 md:p-6 transition-all duration-300",
         active?.id === `group-droppable-${group.id}` && "opacity-50",
         isOver && active && String(active.id).startsWith('link-') && "ring-2 ring-primary/40 bg-primary/5 border-primary/30"
       )}
@@ -130,25 +140,25 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
         <div className="flex items-center gap-2.5">
           {editMode && isAdmin && (
             <div 
-              className="cursor-move p-1 rounded-md hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors"
+              className="cursor-move rounded-xl border border-[hsl(var(--glass-border)/0.06)] bg-[hsl(var(--glass-highlight)/0.03)] p-1.5 text-muted-foreground/50 transition-colors hover:text-foreground"
                 {...dragListeners}
             >
                <GripVertical className="h-4 w-4" />
             </div>
           )}
           <div className="flex items-center gap-2.5">
-            <div className="h-6 w-1 bg-primary/50 rounded-full" />
-            <h3 className="font-bold text-xl tracking-tight text-foreground">
+            <div className="h-7 w-1 rounded-full bg-primary/45" />
+            <h3 className="text-lg font-semibold tracking-tight text-foreground md:text-[1.15rem]">
               {group.title}
             </h3>
-            <span className="text-[10px] font-bold text-muted-foreground px-2 py-0.5 rounded-md bg-muted/50">
+            <span className="rounded-full border border-[hsl(var(--glass-border)/0.07)] bg-[hsl(var(--glass-highlight)/0.03)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                {filteredLinks.length}
             </span>
           </div>
         </div>
 
         {isAdmin && editMode && (
-          <div className="flex items-center gap-1 opacity-100 transition-opacity duration-200">
+          <div className="flex items-center gap-1 rounded-full border border-[hsl(var(--glass-border)/0.07)] bg-[hsl(var(--glass-highlight)/0.02)] px-1.5 py-1 transition-opacity duration-200">
              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => onEditGroup(group)}>
                <Edit className="h-3.5 w-3.5" />
              </Button>
@@ -178,7 +188,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
                    items={filteredLinks.map(l => `link-${l.id}`)}
                    strategy={rectSortingStrategy}
                  >
-                   <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+                   <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 md:gap-5">
                      {filteredLinks.map(link => (
                        <SortableLinkCard 
                          key={link.id}
@@ -194,7 +204,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
                    </div>
                  </SortableContext>
             ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 md:gap-5">
                    {filteredLinks.map(link => (
                      <LinkCard
                        key={link.id}

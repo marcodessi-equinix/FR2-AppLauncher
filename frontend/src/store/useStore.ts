@@ -3,20 +3,8 @@ import { persist } from 'zustand/middleware';
 import { Group, Link } from '../types';
 import api, { safeArray } from '../lib/api';
 
-export type Theme = 'dark' | 'light' | 'equinix';
+export type Theme = 'dark' | 'light';
 export type PreferredLanguage = 'de' | 'en';
-
-export interface WorldClock {
-  city: string;
-  tz: string;
-  flagClass: string;
-}
-
-const DEFAULT_CLOCKS: WorldClock[] = [
-  { city: 'London', tz: 'Europe/London', flagClass: 'fi fi-gb' },
-  { city: 'India', tz: 'Asia/Kolkata', flagClass: 'fi fi-in' },
-  { city: 'USA (ET)', tz: 'America/New_York', flagClass: 'fi fi-us' },
-];
 
 interface AppState {
   isAdmin: boolean;
@@ -39,21 +27,14 @@ interface AppState {
   
   reorderLinks: (groupId: number, newLinks: Link[]) => void;
   
-  userIdentifier: string | null;
   clientId: string | null;
-  initUserIdentifier: () => Promise<void>;
+  initClientIdentity: () => Promise<void>;
   
   favorites: number[];
-  fetchFavorites: () => Promise<void>;
   toggleFavorite: (linkId: number) => Promise<void>;
 
   activeCategory: string | null;
   setActiveCategory: (category: string | null) => void;
-
-  worldClocks: WorldClock[];
-  setWorldClocks: (clocks: WorldClock[]) => void;
-  addWorldClock: (clock: WorldClock) => void;
-  removeWorldClock: (index: number) => void;
 }
 export const useStore = create<AppState>()(
   persist(
@@ -82,10 +63,9 @@ export const useStore = create<AppState>()(
         ),
       })),
 
-      userIdentifier: null, // Left for backward compat if needed, but unused
       clientId: null,
       
-      initUserIdentifier: async () => {
+      initClientIdentity: async () => {
         // New Client Identity Logic
         try {
             // 1. Get Fingerprint
@@ -111,10 +91,6 @@ export const useStore = create<AppState>()(
       },
 
       favorites: [],
-      fetchFavorites: async () => {
-        // Deprecated - handled in init
-      },
-
       toggleFavorite: async (linkId: number) => {
         const { clientId, favorites } = get();
         if (!clientId) return;
@@ -143,15 +119,10 @@ export const useStore = create<AppState>()(
 
       activeCategory: 'all',
       setActiveCategory: (category) => set({ activeCategory: category }),
-
-      worldClocks: DEFAULT_CLOCKS,
-      setWorldClocks: (clocks) => set({ worldClocks: clocks }),
-      addWorldClock: (clock) => set((state) => ({ worldClocks: [...state.worldClocks, clock] })),
-      removeWorldClock: (index) => set((state) => ({ worldClocks: state.worldClocks.filter((_, i) => i !== index) })),
     }),
     {
       name: 'fr2-applauncher-storage',
-      partialize: (state) => ({ theme: state.theme, userIdentifier: state.userIdentifier, activeCategory: state.activeCategory, preferredLanguage: state.preferredLanguage, worldClocks: state.worldClocks }), // Persist theme, userIdentifier, category, language, clocks
+      partialize: (state) => ({ theme: state.theme, activeCategory: state.activeCategory, preferredLanguage: state.preferredLanguage }),
     }
   )
 );

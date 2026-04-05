@@ -8,8 +8,26 @@ export const HEARTBEAT_TIMEOUT_MS = 30 * 1000;
 class SessionService {
   private activeSession: AdminSession | null = null;
 
+  private isExpired(session: AdminSession | null): boolean {
+    return !session || Date.now() - session.lastHeartbeat > HEARTBEAT_TIMEOUT_MS;
+  }
+
   public getActiveSession(): AdminSession | null {
+    if (this.isExpired(this.activeSession)) {
+      this.activeSession = null;
+    }
     return this.activeSession;
+  }
+
+  public claimSession(sessionId: string, force = false): boolean {
+    const currentSession = this.getActiveSession();
+
+    if (force || !currentSession || currentSession.sessionId === sessionId) {
+      this.activeSession = { sessionId, lastHeartbeat: Date.now() };
+      return true;
+    }
+
+    return false;
   }
 
   public setActiveSession(sessionId: string) {
@@ -22,22 +40,15 @@ class SessionService {
     }
   }
 
-  public heartbeat(sessionId: string) {
-    if (this.activeSession?.sessionId === sessionId) {
-      this.activeSession.lastHeartbeat = Date.now();
-    } else if (!this.activeSession || Date.now() - this.activeSession.lastHeartbeat >= HEARTBEAT_TIMEOUT_MS) {
-      // Recover session or take over if lock expired
-      this.activeSession = { sessionId, lastHeartbeat: Date.now() };
-    }
+  public heartbeat(sessionId: string): boolean {
+    return this.claimSession(sessionId);
   }
 
   public isLockedFor(sessionId: string): boolean {
-    if (!this.activeSession) return false;
-    if (this.activeSession.sessionId === sessionId) return false;
-    if (Date.now() - this.activeSession.lastHeartbeat > HEARTBEAT_TIMEOUT_MS) {
-      return false; // Lock expired
-    }
-    return true; // Locked by another active session
+    const currentSession = this.getActiveSession();
+    if (!currentSession) return false;
+    if (currentSession.sessionId === sessionId) return false;
+    return true;
   }
 }
 

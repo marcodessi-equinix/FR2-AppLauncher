@@ -1,6 +1,8 @@
 import express from 'express';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { adminSessionService } from '../services/sessionService';
 
 const router = express.Router();
@@ -12,6 +14,14 @@ const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 10;
 const loginAttempts = new Map<string, { count: number; firstAttemptAt: number }>();
+const LoginSchema = z.object({
+  password: z.string().min(1),
+  overrideLock: z.boolean().optional().default(false),
+});
+const TokenPayloadSchema = z.object({
+  isAdmin: z.boolean(),
+  sessionId: z.string().uuid().optional(),
+});
 
 function isHttpsRequest(req: express.Request): boolean {
   const forwardedProto = req.header('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
@@ -68,41 +78,57 @@ function clearRateLimit(req: express.Request) {
   loginAttempts.delete(getClientKey(req));
 }
 
-router.post('/login', (req, res) => {
+async function verifyAdminPassword(password: string): Promise<boolean> {
+  if (!ADMIN_PASSWORD) {
+    return false;
+  }
+
+  if (ADMIN_PASSWORD.startsWith('$2')) {
+    return bcrypt.compare(password, ADMIN_PASSWORD);
+  }
+
+  return password === ADMIN_PASSWORD;
+}
+
+function getTokenPayload(token: string) {
+  const verifiedToken = jwt.verify(token, JWT_SECRET);
+  return TokenPayloadSchema.parse(verifiedToken);
+}
+
+router.post('/login', async (req, res) => {
   if (isRateLimited(req)) {
     return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
   }
 
-  const { password, overrideLock } = req.body;
-
-  // Check for an active session lock before checking the password
-  if (adminSessionService.getActiveSession() && !overrideLock) {
-      if (adminSessionService.isLockedFor('new-login')) {
-          return res.status(403).json({ error: 'Another staff member is currently logged in. Please wait until they are finished before making changes.' });
-      }
+  const parsedBody = LoginSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ error: 'Invalid login payload' });
   }
 
-  if (password === ADMIN_PASSWORD) {
+  const { password, overrideLock } = parsedBody.data;
 
-    const sessionId = uuidv4();
-    const token = jwt.sign({ isAdmin: true, sessionId }, JWT_SECRET, { expiresIn: '7d' });
-    
-    adminSessionService.setActiveSession(sessionId);
-    clearRateLimit(req);
-
-    res.cookie('auth_token', token, getAuthCookieOptions(req));
-
-    return res.json({ success: true, sessionId });
+  if (!await verifyAdminPassword(password)) {
+    return res.status(401).json({ error: 'Invalid password' });
   }
 
-  return res.status(401).json({ error: 'Invalid password' });
+  const sessionId = uuidv4();
+  if (!adminSessionService.claimSession(sessionId, overrideLock)) {
+    return res.status(403).json({ error: 'Another staff member is currently logged in. Please wait until they are finished before making changes.' });
+  }
+
+  const token = jwt.sign({ isAdmin: true, sessionId }, JWT_SECRET, { expiresIn: '7d' });
+  clearRateLimit(req);
+
+  res.cookie('auth_token', token, getAuthCookieOptions(req));
+
+  return res.json({ success: true, sessionId });
 });
 
 router.post('/logout', (req, res) => {
   const token = req.cookies.auth_token;
   if (token) {
     try {
-      const payload = jwt.verify(token, JWT_SECRET) as any;
+      const payload = getTokenPayload(token);
       adminSessionService.clearSession(payload.sessionId);
     } catch(e) {}
   }
@@ -115,11 +141,10 @@ router.post('/heartbeat', (req, res) => {
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as any;
-    if (adminSessionService.isLockedFor(payload.sessionId)) {
+    const payload = getTokenPayload(token);
+    if (!payload.sessionId || !adminSessionService.heartbeat(payload.sessionId)) {
         return res.status(403).json({ error: 'Session overwritten by another admin' });
     }
-    adminSessionService.heartbeat(payload.sessionId);
     return res.json({ success: true });
   } catch (e) {
     return res.status(401).json({ error: 'Invalid token' });
@@ -132,16 +157,13 @@ router.get('/me', (req, res) => {
     return res.json({ isAdmin: false });
   }
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as any;
+    const payload = getTokenPayload(token);
     
     // Check if session has been locked by someone else
-    if (adminSessionService.isLockedFor(payload.sessionId)) {
+    if (!payload.sessionId || !adminSessionService.heartbeat(payload.sessionId)) {
         res.clearCookie('auth_token', getAuthCookieBaseOptions(req));
         return res.json({ isAdmin: false });
     }
-    
-    // Refresh local session state
-    adminSessionService.heartbeat(payload.sessionId);
 
     return res.json({ isAdmin: true });
   } catch (e) {

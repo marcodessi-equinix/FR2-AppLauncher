@@ -1,13 +1,19 @@
 import { Request, Response } from 'express';
 import db from '../db/index';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
+
+const RegisterClientSchema = z.object({
+  fingerprint: z.string().regex(/^([a-f0-9]{64}|fallback-[a-f0-9]{8})$/i),
+});
 
 export const registerClient = (req: Request, res: Response) => {
-  const { fingerprint } = req.body;
-
-  if (!fingerprint) {
-    return res.status(400).json({ error: 'Missing fingerprint' });
+  const result = RegisterClientSchema.safeParse(req.body);
+  if (!result.success) {
+    return res.status(400).json({ error: 'Invalid fingerprint' });
   }
+
+  const { fingerprint } = result.data;
 
   try {
     // Check if client exists

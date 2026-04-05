@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { getFavorites } from '../../utils/favoritesStorage';
+import React, { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Group, Link } from '../../types';
 import { GroupSection } from './GroupSection';
 import { LinkCard } from './LinkCard';
 import { useStore } from '../../store/useStore';
-import { Loader2, AlertCircle, Plus } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { ManageGroupModal } from '../admin/ManageGroupModal';
 import { ManageLinkModal } from '../admin/ManageLinkModal';
@@ -81,7 +80,9 @@ const SortableSection: React.FC<{
   group: Group;
   children: React.ReactNode;
 }> = ({ group, children }) => {
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const innerRef = React.useRef<HTMLDivElement>(null);
+  const placeholderRef = React.useRef<HTMLDivElement | null>(null);
   const lastHeightRef = React.useRef<number>(160);
 
   const {
@@ -101,17 +102,32 @@ const SortableSection: React.FC<{
     }
   });
 
-  const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-  };
+  React.useLayoutEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    containerRef.current.style.transform = CSS.Translate.toString(transform) || '';
+    containerRef.current.style.transition = transition || '';
+  }, [transform, transition]);
+
+  React.useLayoutEffect(() => {
+    if (placeholderRef.current) {
+      placeholderRef.current.style.height = `${lastHeightRef.current}px`;
+    }
+  }, [isDragging]);
+
+  const setContainerNodeRef = React.useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    setNodeRef(node);
+  }, [setNodeRef]);
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setContainerNodeRef} {...attributes}>
       {isDragging ? (
         <div
+          ref={placeholderRef}
           className="rounded-xl border-2 border-dashed border-primary/30 bg-primary/5"
-          style={{ height: `${lastHeightRef.current}px` }}
         />
       ) : (
         <div ref={innerRef}>
@@ -133,24 +149,15 @@ export const DashboardGrid: React.FC = () => {
   const isAdmin = useStore(state => state.isAdmin);
   const searchQuery = useStore(state => state.searchQuery);
   const activeCategory = useStore(state => state.activeCategory);
+  const favorites = useStore(state => state.favorites);
+  const toggleFavorite = useStore(state => state.toggleFavorite);
 
-  const [localFavorites, setLocalFavorites] = useState<number[]>(getFavorites());
-  const [, setFavTrigger] = useState(false);
   const [activeDragId, setActiveDragId] = useState<UniqueIdentifier | null>(null);
   const [activeDragGroup, setActiveDragGroup] = useState<Group | null>(null);
   const [localGroups, setLocalGroups] = useState<Group[]>([]);
   const [dragOverGroupId, setDragOverGroupId] = useState<number | null>(null);
   const [dragDirection, setDragDirection] = useState<'before' | 'after' | null>(null);
   const dragStartSnapshotRef = useRef<Group[]>([]);
-
-  useEffect(() => {
-    const handler = () => {
-      setLocalFavorites(getFavorites());
-      setFavTrigger(prev => !prev);
-    };
-    window.addEventListener("favoritesUpdated", handler);
-    return () => window.removeEventListener("favoritesUpdated", handler);
-  }, []);
 
   const queryClient = useQueryClient();
 
@@ -160,6 +167,7 @@ export const DashboardGrid: React.FC = () => {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [selectedLink, setSelectedLink] = useState<Link | null>(null);
   const [targetGroupId, setTargetGroupId] = useState<number | null>(null);
+  const [favoritesExpanded, setFavoritesExpanded] = useState(true);
 
   const { data: groups, isLoading, error } = useQuery({
     queryKey: ['dashboardData'],
@@ -224,7 +232,9 @@ export const DashboardGrid: React.FC = () => {
     }
   }, [queryClient]);
 
-  const handleToggleFavorite = React.useCallback((_id: number) => {}, []);
+  const handleToggleFavorite = React.useCallback(async (id: number) => {
+    await toggleFavorite(id);
+  }, [toggleFavorite]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const idStr = String(event.active.id);
@@ -462,7 +472,7 @@ export const DashboardGrid: React.FC = () => {
       group={group}
       isAdmin={isAdmin}
       editMode={editMode}
-      favorites={localFavorites}
+      favorites={favorites}
       searchQuery={searchQuery}
       onEditGroup={handleEditGroup}
       onDeleteGroup={handleDeleteGroup}
@@ -540,46 +550,61 @@ export const DashboardGrid: React.FC = () => {
         };
 
         const renderFavorites = () => {
-          if (!(activeCategory === 'all' || activeCategory === 'favorites' || !activeCategory) || localFavorites.length === 0) return null;
-          const validFavorites = localFavorites
+          if (!(activeCategory === 'all' || activeCategory === 'favorites' || !activeCategory) || favorites.length === 0) return null;
+          const validFavorites = favorites
             .map(favId => groups?.flatMap(g => g.links || []).find(l => l.id === favId))
             .filter(Boolean) as Link[];
           if (validFavorites.length === 0) return null;
 
           return (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="h-5 w-1 bg-amber-400/60 rounded-full" />
-                <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-foreground/80 flex items-center gap-2.5">
-                  Favoriten
-                  <span className="text-[10px] font-bold text-amber-400/70 px-2 py-0.5 rounded-md bg-amber-400/10">
+            <section className="favorites-panel rounded-[28px] border border-amber-400/10 bg-[linear-gradient(180deg,rgba(251,191,36,0.08),rgba(251,191,36,0.02))] p-5 md:p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-5 w-1 rounded-full bg-amber-400/60" />
+                  <h2 className="flex items-center gap-2.5 text-sm font-bold uppercase tracking-[0.18em] text-foreground/85">
+                    Favoriten
+                    <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold text-amber-400/75">
                     {validFavorites.length}
-                  </span>
-                </h2>
+                    </span>
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFavoritesExpanded((current) => !current)}
+                  className="favorites-toggle inline-flex items-center gap-2 rounded-full border border-amber-400/10 bg-black/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {favoritesExpanded ? 'Ausblenden' : 'Anzeigen'}
+                  {favoritesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
               </div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
-                {validFavorites.map(link => (
-                  <LinkCard
-                    key={link.id}
-                    link={link}
-                    isFavorite={true}
-                    isAdmin={isAdmin}
-                    editMode={editMode}
-                    onEdit={handleEditLink}
-                    onDelete={handleDeleteLink}
-                    onToggleFavorite={handleToggleFavorite}
-                  />
-                ))}
-              </div>
-            </div>
+
+              {favoritesExpanded && (
+                <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 md:gap-5">
+                  {validFavorites.map(link => (
+                    <LinkCard
+                      key={link.id}
+                      link={link}
+                      isFavorite={true}
+                      isAdmin={isAdmin}
+                      editMode={editMode}
+                      onEdit={handleEditLink}
+                      onDelete={handleDeleteLink}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
           );
         };
 
         const dashboardContent = (
-          <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
+          <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-500 md:space-y-10">
             {renderFavorites()}
             {emptyState}
-            {renderGroups(displayGroups)}
+            <div className="space-y-8 md:space-y-9">
+              {renderGroups(displayGroups)}
+            </div>
           </div>
         );
 
@@ -610,7 +635,7 @@ export const DashboardGrid: React.FC = () => {
                   <div className="opacity-90 rotate-2 scale-105 shadow-2xl pointer-events-none">
                     <LinkCard
                       link={activeDragLink}
-                      isFavorite={localFavorites.includes(activeDragLink.id)}
+                      isFavorite={favorites.includes(activeDragLink.id)}
                       isAdmin={false}
                       editMode={false}
                       onToggleFavorite={() => {}}

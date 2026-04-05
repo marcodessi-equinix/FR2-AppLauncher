@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "npm run build && node --test test",
+    "test": "npm run build && node --test ./test/app.test.js",
     "build": "tsc",
     "start": "node dist/app.js",
     "dev": "nodemon -r dotenv/config src/app.ts dotenv_config_path=../.env"
@@ -15,7 +15,6 @@
   "dependencies": {
     "@types/cheerio": "^0.22.35",
     "bcrypt": "^6.0.0",
-    "better-sqlite3": "^12.6.2",
     "cheerio": "^1.2.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -31,7 +30,6 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

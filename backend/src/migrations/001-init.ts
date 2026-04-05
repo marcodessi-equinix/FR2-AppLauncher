@@ -1,6 +1,6 @@
-import { Database } from 'better-sqlite3';
+import type { AppDatabase } from '../db/index';
 
-export async function up(db: Database) {
+export async function up(db: AppDatabase) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS config (
       key TEXT PRIMARY KEY,

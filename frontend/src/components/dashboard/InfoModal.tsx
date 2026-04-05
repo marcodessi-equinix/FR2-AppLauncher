@@ -31,6 +31,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
   const [editDE, setEditDE] = useState('');
   const [editEN, setEditEN] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [activeEditor, setActiveEditor] = useState<'de' | 'en' | null>(null);
   const translateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeEditorRef = useRef<'de' | 'en' | null>(null);
 
@@ -137,18 +138,21 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
   const handleEdit = () => {
     setEditDE(content.de);
     setEditEN(content.en);
+    setActiveEditor(null);
     activeEditorRef.current = null;
     setIsEditing(true);
   };
 
   const handleDEChange = useCallback((value: string) => {
     setEditDE(value);
+    setActiveEditor('de');
     activeEditorRef.current = 'de';
     scheduleTranslation(value, 'de');
   }, [scheduleTranslation]);
 
   const handleENChange = useCallback((value: string) => {
     setEditEN(value);
+    setActiveEditor('en');
     activeEditorRef.current = 'en';
     scheduleTranslation(value, 'en');
   }, [scheduleTranslation]);
@@ -174,6 +178,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
 
   const handleClose = () => {
     if (translateTimerRef.current) clearTimeout(translateTimerRef.current);
+    setActiveEditor(null);
     setIsEditing(false);
     onClose();
   };
@@ -245,7 +250,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border/50">
                   <span className="fi fi-de text-base rounded-sm overflow-hidden" />
                   <label className="text-[10px] font-black text-foreground/80 uppercase tracking-[0.2em]">Deutsch</label>
-                  {isTranslating && activeEditorRef.current === 'en' && (
+                  {isTranslating && activeEditor === 'en' && (
                     <span className="text-[9px] text-primary/60 animate-pulse ml-auto">auto-translating...</span>
                   )}
                 </div>
@@ -261,7 +266,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border/50">
                   <span className="fi fi-us text-base rounded-sm overflow-hidden" />
                   <label className="text-[10px] font-black text-foreground/80 uppercase tracking-[0.2em]">English</label>
-                  {isTranslating && activeEditorRef.current === 'de' && (
+                  {isTranslating && activeEditor === 'de' && (
                     <span className="text-[9px] text-primary/60 animate-pulse ml-auto">auto-translating...</span>
                   )}
                 </div>

@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
 
@@ -10,7 +10,7 @@ function seed() {
       fs.mkdirSync(dbDir, { recursive: true });
   }
 
-  const db = new Database(dbPath);
+  const db = new DatabaseSync(dbPath);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS config (
@@ -36,7 +36,7 @@ function seed() {
     );
   `);
 
-  db.pragma('foreign_keys = ON');
+  db.exec('PRAGMA foreign_keys = ON');
 
   // Create Groups
   const groups = [

@@ -20,20 +20,14 @@ import { SplashIntro } from './components/SplashIntro';
 const TIMEOUT_MS = 15 * 60 * 1000; // 15 Minuten
 
 function AppContent() {
-  const { setIsAdmin, initUserIdentifier, fetchFavorites, userIdentifier, isAdmin } = useStore();
+  const { setIsAdmin, initClientIdentity, isAdmin } = useStore();
   const [showIntro, setShowIntro] = React.useState(() => {
     return !localStorage.getItem('fr2_intro_seen');
   });
 
   React.useEffect(() => {
-    initUserIdentifier();
-  }, [initUserIdentifier]);
-
-  React.useEffect(() => {
-    if (userIdentifier) {
-      fetchFavorites();
-    }
-  }, [userIdentifier, fetchFavorites]);
+    void initClientIdentity();
+  }, [initClientIdentity]);
 
   React.useEffect(() => {
     const checkAuth = async () => {
@@ -138,8 +132,6 @@ function AppContent() {
 }
 
 import { TooltipProvider } from './components/ui/tooltip';
-
-// ... (imports remain)
 
 function App() {
   return (

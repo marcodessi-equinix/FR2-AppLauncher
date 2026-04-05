@@ -3,6 +3,15 @@ import { X, Lock, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
 import { useStore } from '../../store/useStore';
 
+interface LoginErrorResponse {
+  response?: {
+    status?: number;
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -33,8 +42,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       setIsAdmin(true);
       onClose();
     } catch (err) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errorResponse = err as any;
+      const errorResponse = err as LoginErrorResponse;
       if (errorResponse.response?.status === 403) {
         setError(errorResponse.response.data?.error || 'Another staff member is currently logged in. Please wait until they are finished before making changes.');
       } else if (errorResponse.response?.status === 429) {
@@ -63,6 +71,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           </div>
           <button 
             onClick={onClose}
+            type="button"
+            title="Close login modal"
+            aria-label="Close login modal"
             className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
           >
             <X className="h-5 w-5" />

@@ -48,7 +48,12 @@ router.post('/', requireAdmin, (req, res) => {
 
 // PUT update link
 router.put('/:id', requireAdmin, (req, res) => {
-  const { id } = req.params;
+  const idResult = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!idResult.success) {
+    return res.status(400).json({ error: 'Invalid link id' });
+  }
+
+  const id = idResult.data;
   const result = LinkSchema.safeParse(req.body);
   
   if (!result.success) {
@@ -80,7 +85,12 @@ router.put('/:id', requireAdmin, (req, res) => {
 
 // DELETE link
 router.delete('/:id', requireAdmin, (req, res) => {
-  const { id } = req.params;
+  const idResult = z.coerce.number().int().positive().safeParse(req.params.id);
+  if (!idResult.success) {
+    return res.status(400).json({ error: 'Invalid link id' });
+  }
+
+  const id = idResult.data;
 
   try {
     const stmt = db.prepare('DELETE FROM links WHERE id = ?');

@@ -2,16 +2,26 @@
   "name": "fr2-applauncher-root",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
-    "install:all": "npm install && cd backend && npm install && cd frontend && npm install",
-    "dev:backend": "cd backend && DATABASE_PATH=./.dev-data/applauncher.db UPLOAD_PATH=./.dev-data/uploads/icons npm run dev",
-    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install --workspaces --include-workspace-root",
+    "dev:backend": "cross-env NODE_ENV=development ALLOW_INSECURE_DEFAULTS=true JWT_SECRET=CHANGE_ME_DEV_SECRET ADMIN_PASSWORD=1234 DATABASE_PATH=./.dev-data/applauncher.db UPLOAD_PATH=./.dev-data/uploads/icons npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build:backend": "cd backend && npm run build",
-    "build:frontend": "cd frontend && npm run build",
-    "build": "npm run build:backend && npm run build:frontend"
+    "build:backend": "npm run build --workspace backend",
+    "build:frontend": "npm run build --workspace frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "lint": "npm run lint --workspace frontend",
+    "test": "npm test --workspace backend"
   },
   "devDependencies": {
-    "concurrently": "^8.0.0"
+    "concurrently": "^8.0.0",
+    "cross-env": "^7.0.3"
   }
 }

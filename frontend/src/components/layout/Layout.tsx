@@ -10,7 +10,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans antialiased relative noise-overlay pb-20">
+    <div className="min-h-screen bg-background text-foreground font-sans antialiased relative noise-overlay pb-16 md:pb-[4.5rem]">
       {/* Ambient background ... */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         {/* ... */}
@@ -18,11 +18,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <Header />
       
-      <main className="relative z-10 w-full px-[clamp(32px,3vw,64px)] py-6">
+      <main className="app-main relative z-10 w-full px-[clamp(24px,3vw,64px)] py-8 md:py-10">
         {children}
       </main>
       
-      <footer className="relative z-10 py-6 text-center text-[10px] text-muted-foreground/30 font-medium tracking-wider uppercase">
+      <footer className="relative z-10 py-6 text-center text-[9px] text-muted-foreground/25 font-medium tracking-[0.24em] uppercase">
         <p>&copy; {new Date().getFullYear()} FR2 AppLauncher · Enterprise Application Access Platform</p>
       </footer>
 
