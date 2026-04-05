@@ -6,8 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     volumes:
-      - ./data:/app/data:z
-      - ./uploads:/app/uploads:z
+      - fr2-applauncher-data:/app/data
+      - fr2-applauncher-uploads:/app/uploads
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -57,3 +57,9 @@ services:
 
 networks:
   fr2-applauncher:
+
+volumes:
+  fr2-applauncher-data:
+    name: fr2-applauncher-data
+  fr2-applauncher-uploads:
+    name: fr2-applauncher-uploads
