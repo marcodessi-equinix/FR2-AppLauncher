@@ -45,8 +45,11 @@ services:
       backend:
         condition: service_started
     networks:
-      - fr2-applauncher
-      - proxy-network
+      fr2-applauncher:
+      proxy-network:
+        aliases:
+          - fr2-applauncher-frontend
+          - frontend
     restart: unless-stopped
     logging:
       driver: "json-file"
