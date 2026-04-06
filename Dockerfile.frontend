@@ -15,8 +15,5 @@ FROM docker.io/library/nginx:alpine AS runtime
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY docker/frontend-entrypoint.sh /docker-entrypoint.d/99-frontend-config.sh
-
-RUN chmod +x /docker-entrypoint.d/99-frontend-config.sh
 
 EXPOSE 80
