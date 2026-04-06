@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { cn } from '../../lib/utils';
 import { executeImport, ImportPreviewData, ParsedGroup, ParsedLink } from '../../lib/api';
 import { useStore } from '../../store/useStore';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
   DragOverlay,
@@ -16,7 +17,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  pointerWithin,
   MeasuringStrategy
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -68,7 +69,7 @@ const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }
             {...listeners}
             {...attributes}
             className={cn(
-                "flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all duration-150 group relative cursor-grab active:cursor-grabbing touch-none",
+                "flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-[border-color,background-color,opacity,box-shadow] duration-150 group relative cursor-grab active:cursor-grabbing touch-none",
                 isDragging ? "opacity-20 bg-primary/20 border-primary/40 z-50 shadow-lg" : "border-transparent hover:border-white/10 hover:bg-white/[0.04]",
                 isGhosted && !isDragging ? "opacity-30" : "",
                 link.isDuplicate ? "bg-amber-400/5 border-amber-400/20 hover:border-amber-400/30" :
@@ -153,7 +154,7 @@ const DroppableGroup = React.memo(({ group, children, onToggle, isSource, onSele
         <div 
             ref={setNodeRef}
             className={cn(
-                "rounded-xl border transition-all duration-200 mb-3 overflow-hidden",
+                "rounded-xl border transition-[border-color,background-color,box-shadow,ring-color] duration-200 mb-3 overflow-hidden",
                 isOver 
                     ? "border-primary/50 ring-2 ring-primary/20 bg-primary/5" 
                     : "border-white/[0.07] bg-white/[0.025] hover:border-white/[0.1]"
@@ -220,7 +221,8 @@ const DroppableGroup = React.memo(({ group, children, onToggle, isSource, onSele
 });
 
 export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, onClose, data }) => {
-    const { groups: currentGroups } = useStore();
+    const currentGroups = useStore((state) => state.groups);
+    const queryClient = useQueryClient();
     const [sourceGroups, setSourceGroups] = React.useState<UIGroup[]>([]);
     const [targetGroups, setTargetGroups] = React.useState<UIGroup[]>([]);
     const [activeDragId, setActiveDragId] = React.useState<string | null>(null);
@@ -601,8 +603,8 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
     return (
         <DndContext 
             sensors={sensors} 
-            collisionDetection={closestCorners}
-            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+            collisionDetection={pointerWithin}
+            measuring={{ droppable: { strategy: MeasuringStrategy.WhileDragging } }}
             onDragStart={handleDragStart} 
             onDragEnd={handleDragEnd}
         >
@@ -888,7 +890,11 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                     <DialogFooter>
                         <Button
                             className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-[0_0_20px_-4px_rgba(52,211,153,0.5)]"
-                            onClick={() => window.location.reload()}
+                            onClick={() => {
+                                setSuccessMessage(null);
+                                void queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
+                                onClose();
+                            }}
                         >
                             OK
                         </Button>

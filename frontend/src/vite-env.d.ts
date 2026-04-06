@@ -7,3 +7,6 @@ interface RuntimeConfig {
 interface Window {
   RUNTIME_CONFIG?: RuntimeConfig;
 }
+
+declare const __APP_VERSION__: string;
+declare const __BUILD_DATE__: string;

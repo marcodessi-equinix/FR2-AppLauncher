@@ -1,36 +1,35 @@
 import React from 'react';
-import { Edit, Trash2, Star } from 'lucide-react';
+import { Trash2, Star } from 'lucide-react';
 
 import { Link } from '../../types';
 import { DynamicIcon } from '../ui/DynamicIcon';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
+import { useStore } from '../../store/useStore';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "../ui/tooltip";
+} from '../ui/tooltip';
 import { cn } from '../../lib/utils';
 
 export interface LinkCardProps {
   link: Link;
-  isFavorite: boolean;
   isAdmin: boolean;
   editMode: boolean;
   onEdit?: (link: Link) => void;
   onDelete?: (id: number) => void;
-  onToggleFavorite: (id: number) => void;
 }
 
 const LinkCardComponent: React.FC<LinkCardProps> = ({ 
   link, 
-  isFavorite,
   isAdmin, 
   editMode,
   onEdit, 
-  onDelete,
-  onToggleFavorite 
+  onDelete
 }) => {
+  const isFavorite = useStore((state) => state.favorites.includes(link.id));
+  const toggleFavorite = useStore((state) => state.toggleFavorite);
   const hostname = React.useMemo(() => {
     try {
       return new URL(link.url).hostname.replace(/^www\./, '');
@@ -40,34 +39,44 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
   }, [link.url]);
 
   const handleTileClick = (e: React.MouseEvent) => {
-    if (editMode) return; 
-    
     e.preventDefault();
+
+    if (editMode) {
+      if (isAdmin) {
+        onEdit?.(link);
+      }
+      return;
+    }
+
     window.open(link.url, '_blank', 'noopener,noreferrer');
   };
 
   const handleTileKeyDown = (event: React.KeyboardEvent) => {
-    if (editMode) {
-      return;
-    }
-
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
+
+      if (editMode) {
+        if (isAdmin) {
+          onEdit?.(link);
+        }
+        return;
+      }
+
       window.open(link.url, '_blank', 'noopener,noreferrer');
     }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
-    void onToggleFavorite(link.id);
+    void toggleFavorite(link.id);
   };
 
   return (
     <Card 
       onClick={handleTileClick}
       onKeyDown={handleTileKeyDown}
-      role="link"
-      tabIndex={editMode ? -1 : 0}
+      role={editMode ? 'button' : 'link'}
+      tabIndex={0}
       className={cn(
         "link-card group relative flex h-full w-full cursor-pointer flex-col justify-between p-5",
         "transition-all duration-200 ease-out",
@@ -80,24 +89,14 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
     >
       <div className="absolute top-2 right-2 z-30 flex items-center gap-1">
         {editMode && isAdmin && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-md text-muted-foreground hover:bg-black/40 hover:text-destructive"
-              onClick={(e) => { e.stopPropagation(); onDelete?.(link.id); }}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-md text-muted-foreground hover:bg-black/40 hover:text-primary"
-              onClick={(e) => { e.stopPropagation(); onEdit?.(link); }}
-            >
-              <Edit className="h-3 w-3" />
-            </Button>
-          </>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-md text-muted-foreground hover:bg-black/40 hover:text-destructive"
+            onClick={(e) => { e.stopPropagation(); onDelete?.(link.id); }}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
         )}
 
         <button
@@ -125,16 +124,9 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
 
       {/* Content */}
       <div className="relative z-10 mt-5 flex w-full flex-1 flex-col justify-end gap-3 px-1 text-left">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <h3 className="w-full overflow-hidden text-ellipsis text-base font-semibold leading-tight text-foreground transition-colors duration-200 line-clamp-2 group-hover:text-primary">
-              {link.title}
-            </h3>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-[250px] break-words text-center">
-            {link.title}
-          </TooltipContent>
-        </Tooltip>
+        <h3 className="w-full overflow-hidden text-ellipsis text-base font-semibold leading-tight text-foreground transition-colors duration-200 line-clamp-2 group-hover:text-primary">
+          {link.title}
+        </h3>
         
         {link.description && (
           <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground/75">
@@ -143,8 +135,21 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
         )}
 
         <div className="flex items-center justify-between gap-3 pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
-          <span className="truncate">{hostname}</span>
-          <span className="text-primary/0 transition-colors duration-200 group-hover:text-primary/75">Open</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate max-w-full cursor-default">{hostname}</span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              sideOffset={8}
+              className="max-w-[280px] break-all rounded-md border border-border/60 bg-background/90 px-2 py-1 text-[10px] font-medium tracking-normal text-muted-foreground shadow-lg"
+            >
+              {hostname}
+            </TooltipContent>
+          </Tooltip>
+          <span className="text-primary/0 transition-colors duration-200 group-hover:text-primary/75">
+            {editMode && isAdmin ? 'Edit' : 'Open'}
+          </span>
         </div>
       </div>
 
@@ -154,8 +159,6 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
 
 // Custom comparison function for React.memo
 const arePropsEqual = (prev: LinkCardProps, next: LinkCardProps) => {
-  // Check primitive props and simple values
-  if (prev.isFavorite !== next.isFavorite) return false;
   if (prev.isAdmin !== next.isAdmin) return false;
   // editMode only matters if it changed. 
   // If editMode changed, we MUST re-render to show/hide admin controls or enable/disable clicks

@@ -4,10 +4,21 @@ import { useStore } from '../../store/useStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { DynamicIcon } from '../ui/DynamicIcon';
 import { cn } from '../../lib/utils';
+import { VersionChangelogDialog } from './VersionChangelogDialog';
+import { getLatestChangelogEntry } from '../../lib/changelog';
 
 export const Dock: React.FC = () => {
-  const { groups, activeCategory, setActiveCategory, favorites } = useStore();
-  const version = import.meta.env.VITE_APP_VERSION || 'v0.1.0';
+  const groups = useStore((state) => state.groups);
+  const activeCategory = useStore((state) => state.activeCategory);
+  const setActiveCategory = useStore((state) => state.setActiveCategory);
+  const favorites = useStore((state) => state.favorites);
+  const version = getLatestChangelogEntry()?.version || import.meta.env.VITE_APP_VERSION || __APP_VERSION__ || 'v0.1.0';
+  const buildDate = __BUILD_DATE__;
+  const [isVersionDialogOpen, setIsVersionDialogOpen] = React.useState(false);
+
+  const handleVersionDialogChange = React.useCallback((open: boolean) => {
+    setIsVersionDialogOpen(open);
+  }, []);
 
   const handleCategoryClick = (category: string | null) => {
     setActiveCategory(category);
@@ -60,12 +71,30 @@ export const Dock: React.FC = () => {
 
         {/* Right: Version */}
         <div className="hidden md:flex items-center pl-3 border-l border-[hsl(var(--glass-border)/0.08)] shrink-0">
-           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-[hsl(var(--glass-highlight)/0.03)] border border-[hsl(var(--glass-border)/0.08)] text-muted-foreground/70">
-             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-             <span className="text-[9px] font-bold uppercase tracking-[0.22em]">{version}</span>
-           </div>
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => handleVersionDialogChange(true)}
+                className="relative flex items-center gap-2 rounded-full border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.03)] px-2.5 py-1.5 text-muted-foreground/70 transition-colors hover:border-primary/20 hover:text-foreground"
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500/80" />
+                <span className="text-[9px] font-bold uppercase tracking-[0.22em]">{version}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={12} className="font-bold text-xs tracking-wider">
+              Versionshinweise anzeigen
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
+
+      <VersionChangelogDialog
+        isOpen={isVersionDialogOpen}
+        onOpenChange={handleVersionDialogChange}
+        currentVersion={version}
+        buildDate={buildDate}
+      />
     </div>
   );
 };

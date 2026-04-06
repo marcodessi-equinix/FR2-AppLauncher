@@ -128,7 +128,8 @@ const SortableTimezone: React.FC<{
 // Widget Grid
 // ==================================================
 export const WidgetGrid: React.FC = () => {
-  const { isAdmin, editMode } = useStore();
+  const isAdmin = useStore((state) => state.isAdmin);
+  const editMode = useStore((state) => state.editMode);
   const [time, setTime] = useState(new Date());
   const [orderedIds, setOrderedIds] = useState<string[]>(ALL_TIMEZONES.map((t) => t.id));
   const [loaded, setLoaded] = useState(false);

@@ -20,7 +20,9 @@ import { SplashIntro } from './components/SplashIntro';
 const TIMEOUT_MS = 15 * 60 * 1000; // 15 Minuten
 
 function AppContent() {
-  const { setIsAdmin, initClientIdentity, isAdmin } = useStore();
+  const setIsAdmin = useStore((state) => state.setIsAdmin);
+  const initClientIdentity = useStore((state) => state.initClientIdentity);
+  const isAdmin = useStore((state) => state.isAdmin);
   const [showIntro, setShowIntro] = React.useState(() => {
     return !localStorage.getItem('fr2_intro_seen');
   });

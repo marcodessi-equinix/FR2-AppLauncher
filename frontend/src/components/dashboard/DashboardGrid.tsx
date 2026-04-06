@@ -6,16 +6,19 @@ import { GroupSection } from './GroupSection';
 import { LinkCard } from './LinkCard';
 import { useStore } from '../../store/useStore';
 import { Loader2, AlertCircle, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { removeGroupFromDashboard, removeLinkFromDashboard } from '../../lib/dashboardData';
 
 import { ManageGroupModal } from '../admin/ManageGroupModal';
 import { ManageLinkModal } from '../admin/ManageLinkModal';
 import { Button } from '../ui/button';
 import {
+  CollisionDetection,
   DndContext,
   DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -72,6 +75,79 @@ const GroupDragOverlay: React.FC<{ group: Group }> = ({ group }) => (
     </div>
   </div>
 );
+
+const FavoritesPanel: React.FC<{
+  activeCategory: string | null;
+  allLinks: Link[];
+  isAdmin: boolean;
+  editMode: boolean;
+  onEditLink: (link: Link) => void;
+  onDeleteLink: (id: number) => void;
+}> = ({ activeCategory, allLinks, isAdmin, editMode, onEditLink, onDeleteLink }) => {
+  const favorites = useStore((state) => state.favorites);
+  const [favoritesExpanded, setFavoritesExpanded] = useState(true);
+
+  if (!(activeCategory === 'all' || activeCategory === 'favorites' || !activeCategory) || favorites.length === 0) {
+    return null;
+  }
+
+  const validFavorites = favorites
+    .map((favId) => allLinks.find((link) => link.id === favId))
+    .filter(Boolean) as Link[];
+
+  if (validFavorites.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="favorites-panel rounded-[28px] border border-amber-400/10 bg-[linear-gradient(180deg,rgba(251,191,36,0.08),rgba(251,191,36,0.02))] p-5 md:p-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="h-5 w-1 rounded-full bg-amber-400/60" />
+          <h2 className="flex items-center gap-2.5 text-sm font-bold uppercase tracking-[0.18em] text-foreground/85">
+            Favoriten
+            <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold text-amber-400/75">
+              {validFavorites.length}
+            </span>
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={() => setFavoritesExpanded((current) => !current)}
+          className="favorites-toggle inline-flex items-center gap-2 rounded-full border border-amber-400/10 bg-black/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {favoritesExpanded ? 'Ausblenden' : 'Anzeigen'}
+          {favoritesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+
+      {favoritesExpanded && (
+        <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 md:gap-5">
+          {validFavorites.map((link) => (
+            <LinkCard
+              key={link.id}
+              link={link}
+              isAdmin={isAdmin}
+              editMode={editMode}
+              onEdit={onEditLink}
+              onDelete={onDeleteLink}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const normalizeGroupLinks = (groups: Group[]): Group[] =>
+  groups.map((group) => ({
+    ...group,
+    links: (group.links || []).map((link, index) => ({
+      ...link,
+      group_id: group.id,
+      order: index,
+    })),
+  }));
 
 // ==================================================
 // Sortable Section Wrapper
@@ -149,8 +225,6 @@ export const DashboardGrid: React.FC = () => {
   const isAdmin = useStore(state => state.isAdmin);
   const searchQuery = useStore(state => state.searchQuery);
   const activeCategory = useStore(state => state.activeCategory);
-  const favorites = useStore(state => state.favorites);
-  const toggleFavorite = useStore(state => state.toggleFavorite);
 
   const [activeDragId, setActiveDragId] = useState<UniqueIdentifier | null>(null);
   const [activeDragGroup, setActiveDragGroup] = useState<Group | null>(null);
@@ -167,7 +241,6 @@ export const DashboardGrid: React.FC = () => {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [selectedLink, setSelectedLink] = useState<Link | null>(null);
   const [targetGroupId, setTargetGroupId] = useState<number | null>(null);
-  const [favoritesExpanded, setFavoritesExpanded] = useState(true);
 
   const { data: groups, isLoading, error } = useQuery({
     queryKey: ['dashboardData'],
@@ -176,6 +249,9 @@ export const DashboardGrid: React.FC = () => {
       if (!Array.isArray(res.data)) return [];
       return res.data;
     },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    structuralSharing: false,
   });
 
   const sensors = useSensors(
@@ -183,10 +259,66 @@ export const DashboardGrid: React.FC = () => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const updateLocalGroups = React.useCallback((nextGroups: Group[]) => {
+    const normalizedGroups = normalizeGroupLinks(nextGroups);
+    setLocalGroups(normalizedGroups);
+    return normalizedGroups;
+  }, []);
+
+  const syncDashboardGroups = React.useCallback((nextGroups: Group[]) => {
+    const normalizedGroups = normalizeGroupLinks(nextGroups);
+    setLocalGroups(normalizedGroups);
+    setGroups(normalizedGroups);
+    queryClient.setQueryData(['dashboardData'], normalizedGroups);
+    return normalizedGroups;
+  }, [queryClient, setGroups]);
+
+  const collisionDetection = React.useCallback<CollisionDetection>((args) => {
+    const activeId = String(args.active.id);
+
+    if (!activeId.startsWith('link-')) {
+      return closestCenter(args);
+    }
+
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length === 0) {
+      return closestCenter(args);
+    }
+
+    const sourceGroupId = Number(args.active.data.current?.groupId ?? NaN);
+
+    const targetLinkCollision = pointerCollisions.find(({ id }) => String(id).startsWith('link-'));
+    if (targetLinkCollision) {
+      return [targetLinkCollision];
+    }
+
+    const targetGroupCollision = pointerCollisions.find(({ id }) => {
+      const droppableId = String(id);
+      if (!droppableId.startsWith('group-droppable-')) {
+        return false;
+      }
+
+      const groupId = parseInt(droppableId.replace('group-droppable-', ''), 10);
+      return Number.isNaN(sourceGroupId) || groupId !== sourceGroupId;
+    });
+
+    if (targetGroupCollision) {
+      return [targetGroupCollision];
+    }
+
+    const currentGroupCollision = pointerCollisions.find(({ id }) => String(id).startsWith('group-droppable-'));
+    if (currentGroupCollision) {
+      return [currentGroupCollision];
+    }
+
+    return closestCenter(args);
+  }, []);
+
   React.useEffect(() => {
     if (groups) {
-      setGroups(groups);
-      setLocalGroups(groups);
+      const normalizedGroups = normalizeGroupLinks(groups);
+      setGroups(normalizedGroups);
+      setLocalGroups(normalizedGroups);
     }
   }, [groups, setGroups]);
 
@@ -204,7 +336,8 @@ export const DashboardGrid: React.FC = () => {
     if (!window.confirm('Delete this group and all its links?')) return;
     try {
       await api.delete(`/groups/${id}`);
-      queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
+      setLocalGroups((current) => removeGroupFromDashboard(current, id));
+      queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => removeGroupFromDashboard(current, id));
     } catch (e) {
       console.error('Failed to delete group', e);
     }
@@ -226,15 +359,12 @@ export const DashboardGrid: React.FC = () => {
     if (!window.confirm('Delete this link?')) return;
     try {
       await api.delete(`/links/${id}`);
-      queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
+      setLocalGroups((current) => removeLinkFromDashboard(current, id));
+      queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => removeLinkFromDashboard(current, id));
     } catch (e) {
       console.error('Failed to delete link', e);
     }
   }, [queryClient]);
-
-  const handleToggleFavorite = React.useCallback(async (id: number) => {
-    await toggleFavorite(id);
-  }, [toggleFavorite]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const idStr = String(event.active.id);
@@ -311,7 +441,7 @@ export const DashboardGrid: React.FC = () => {
         const reordered = arrayMove(currentLinks, oldIndex, newIndex);
         const updated = [...localGroups];
         updated[sourceGroupIndex] = { ...sourceGroup, links: reordered };
-        setLocalGroups(updated);
+        updateLocalGroups(updated);
       } else {
         // Cross-group: move live
         if (destGroup.links?.some(l => l.id === activeLinkId)) return;
@@ -324,7 +454,7 @@ export const DashboardGrid: React.FC = () => {
           if (i === destGroupIndex) return { ...g, links: newDestLinks };
           return g;
         });
-        setLocalGroups(updated);
+        updateLocalGroups(updated);
       }
     } else if (overIdStr.startsWith('group-droppable-')) {
       const destGroupId = parseInt(overIdStr.replace('group-droppable-', ''));
@@ -337,7 +467,7 @@ export const DashboardGrid: React.FC = () => {
         if (i === destGroupIndex) return { ...g, links: [...(g.links || []), movedLink] };
         return g;
       });
-      setLocalGroups(updated);
+      updateLocalGroups(updated);
     }
   };
 
@@ -379,11 +509,10 @@ export const DashboardGrid: React.FC = () => {
         snapshotLinks.map(l => l.id).join(',') === currentLinks.map(l => l.id).join(',')
       ) return;
 
-      setGroups(localGroups);
-      queryClient.setQueryData(['dashboardData'], localGroups);
+      const normalizedGroups = syncDashboardGroups(localGroups);
 
       try {
-        const destGroup = localGroups[destGroupIndex];
+        const destGroup = normalizedGroups[destGroupIndex];
         const destLinks = destGroup.links || [];
         const movedLink = destLinks.find(l => l.id === activeLinkId)!;
         const linkOrder = destLinks.findIndex(l => l.id === activeLinkId);
@@ -395,14 +524,13 @@ export const DashboardGrid: React.FC = () => {
             description: movedLink.description || '', icon: movedLink.icon || '',
             order: linkOrder,
           });
-          const srcLinks = localGroups[sourceGroupIndex].links || [];
+          const srcLinks = normalizedGroups[sourceGroupIndex].links || [];
           if (srcLinks.length > 0) await api.put('/reorder/links', srcLinks.map((l, i) => ({ id: l.id, order: i })));
         }
         await api.put('/reorder/links', destLinks.map((l, i) => ({ id: l.id, order: i })));
       } catch (err) {
         console.error('Failed to save link reorder:', err);
-        setLocalGroups(dragStartSnapshotRef.current);
-        queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
+        syncDashboardGroups(dragStartSnapshotRef.current);
       }
       return;
     }
@@ -433,15 +561,12 @@ export const DashboardGrid: React.FC = () => {
       if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
 
       const newOrder = arrayMove(snapshot, oldIndex, newIndex);
-      setLocalGroups(newOrder);
-      setGroups(newOrder);
-      queryClient.setQueryData(['dashboardData'], newOrder);
+      syncDashboardGroups(newOrder);
       try {
         await api.put('/reorder/groups', newOrder.map((g, i) => ({ id: g.id, order: i })));
       } catch (err) {
         console.error('Failed to reorder groups:', err);
-        setLocalGroups(dragStartSnapshotRef.current);
-        queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
+        syncDashboardGroups(dragStartSnapshotRef.current);
       }
     }
   };
@@ -472,14 +597,12 @@ export const DashboardGrid: React.FC = () => {
       group={group}
       isAdmin={isAdmin}
       editMode={editMode}
-      favorites={favorites}
       searchQuery={searchQuery}
       onEditGroup={handleEditGroup}
       onDeleteGroup={handleDeleteGroup}
       onAddLink={handleAddLink}
       onEditLink={handleEditLink}
       onDeleteLink={handleDeleteLink}
-      onToggleFavorite={handleToggleFavorite}
     />
   );
 
@@ -487,9 +610,10 @@ export const DashboardGrid: React.FC = () => {
   const activeDragLink = activeDragId
     ? localGroups.flatMap(g => g.links || []).find(l => `link-${l.id}` === String(activeDragId))
     : null;
+  const allLinks = localGroups.flatMap((group) => group.links || []);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-700">
+    <div className="space-y-4">
 
       {isAdmin && editMode && (
         <div className="flex justify-end pb-3 border-b border-border/50">
@@ -549,58 +673,16 @@ export const DashboardGrid: React.FC = () => {
           return result;
         };
 
-        const renderFavorites = () => {
-          if (!(activeCategory === 'all' || activeCategory === 'favorites' || !activeCategory) || favorites.length === 0) return null;
-          const validFavorites = favorites
-            .map(favId => groups?.flatMap(g => g.links || []).find(l => l.id === favId))
-            .filter(Boolean) as Link[];
-          if (validFavorites.length === 0) return null;
-
-          return (
-            <section className="favorites-panel rounded-[28px] border border-amber-400/10 bg-[linear-gradient(180deg,rgba(251,191,36,0.08),rgba(251,191,36,0.02))] p-5 md:p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-5 w-1 rounded-full bg-amber-400/60" />
-                  <h2 className="flex items-center gap-2.5 text-sm font-bold uppercase tracking-[0.18em] text-foreground/85">
-                    Favoriten
-                    <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold text-amber-400/75">
-                    {validFavorites.length}
-                    </span>
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFavoritesExpanded((current) => !current)}
-                  className="favorites-toggle inline-flex items-center gap-2 rounded-full border border-amber-400/10 bg-black/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {favoritesExpanded ? 'Ausblenden' : 'Anzeigen'}
-                  {favoritesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-
-              {favoritesExpanded && (
-                <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 md:gap-5">
-                  {validFavorites.map(link => (
-                    <LinkCard
-                      key={link.id}
-                      link={link}
-                      isFavorite={true}
-                      isAdmin={isAdmin}
-                      editMode={editMode}
-                      onEdit={handleEditLink}
-                      onDelete={handleDeleteLink}
-                      onToggleFavorite={handleToggleFavorite}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        };
-
         const dashboardContent = (
-          <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-500 md:space-y-10">
-            {renderFavorites()}
+          <div className="space-y-8 md:space-y-10">
+            <FavoritesPanel
+              activeCategory={activeCategory}
+              allLinks={allLinks}
+              isAdmin={isAdmin}
+              editMode={editMode}
+              onEditLink={handleEditLink}
+              onDeleteLink={handleDeleteLink}
+            />
             {emptyState}
             <div className="space-y-8 md:space-y-9">
               {renderGroups(displayGroups)}
@@ -612,7 +694,7 @@ export const DashboardGrid: React.FC = () => {
           return (
             <DndContext
               sensors={sensors}
-              collisionDetection={closestCenter}
+              collisionDetection={collisionDetection}
               onDragStart={handleDragStart}
               onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
@@ -635,10 +717,8 @@ export const DashboardGrid: React.FC = () => {
                   <div className="opacity-90 rotate-2 scale-105 shadow-2xl pointer-events-none">
                     <LinkCard
                       link={activeDragLink}
-                      isFavorite={favorites.includes(activeDragLink.id)}
                       isAdmin={false}
                       editMode={false}
-                      onToggleFavorite={() => {}}
                     />
                   </div>
                 ) : null}

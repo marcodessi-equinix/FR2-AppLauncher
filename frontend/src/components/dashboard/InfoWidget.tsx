@@ -23,7 +23,10 @@ interface InfoWidgetProps {
 }
 
 export const InfoWidget: React.FC<InfoWidgetProps> = ({ mainContent, favoritesContent }) => {
-  const { isAdmin, editMode, preferredLanguage, setPreferredLanguage } = useStore();
+  const isAdmin = useStore((state) => state.isAdmin);
+  const editMode = useStore((state) => state.editMode);
+  const preferredLanguage = useStore((state) => state.preferredLanguage);
+  const setPreferredLanguage = useStore((state) => state.setPreferredLanguage);
   const [isEditing, setIsEditing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFullModal, setShowFullModal] = useState(false);

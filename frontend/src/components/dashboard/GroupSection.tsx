@@ -18,26 +18,22 @@ interface GroupSectionProps {
   group: Group;
   isAdmin: boolean;
   editMode: boolean;
-  favorites: number[];
   searchQuery: string;
   onEditGroup: (group: Group) => void;
   onDeleteGroup: (id: number) => void;
   onAddLink: (groupId: number) => void;
   onEditLink: (link: Link) => void;
   onDeleteLink: (id: number) => void;
-  onToggleFavorite: (id: number) => void;
   dragListeners?: DraggableSyntheticListeners;
 }
 
 // Sortable Link Card Wrapper
-const SortableLinkCard = React.memo(({ link, isAdmin, editMode, isFavorite, onEdit, onDelete, onToggleFavorite }: { 
+const SortableLinkCard = React.memo(({ link, isAdmin, editMode, onEdit, onDelete }: { 
   link: Link; 
   isAdmin: boolean;
   editMode: boolean;
-  isFavorite: boolean;
   onEdit: (link: Link) => void;
   onDelete: (id: number) => void;
-  onToggleFavorite: (id: number) => void;
 }) => {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const {
@@ -71,12 +67,10 @@ const SortableLinkCard = React.memo(({ link, isAdmin, editMode, isFavorite, onEd
     <div ref={setContainerNodeRef} {...attributes} {...listeners}>
       <LinkCard
         link={link}
-        isFavorite={isFavorite}
         isAdmin={isAdmin}
         editMode={editMode}
         onEdit={onEdit}
         onDelete={onDelete}
-        onToggleFavorite={onToggleFavorite}
       />
     </div>
   );
@@ -86,14 +80,12 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
   group,
   isAdmin,
   editMode,
-  favorites,
   searchQuery,
   onEditGroup,
   onDeleteGroup,
   onAddLink,
   onEditLink,
   onDeleteLink,
-  onToggleFavorite,
   dragListeners
 }) => {
   const { setNodeRef, active, isOver } = useDroppable({
@@ -195,10 +187,8 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
                          link={link} 
                          isAdmin={isAdmin}
                          editMode={editMode}
-                         isFavorite={favorites.includes(link.id)}
                          onEdit={onEditLink}
                          onDelete={onDeleteLink}
-                         onToggleFavorite={onToggleFavorite}
                        />
                      ))}
                    </div>
@@ -209,12 +199,10 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
                      <LinkCard
                        key={link.id}
                        link={link}
-                       isFavorite={favorites.includes(link.id)}
                        isAdmin={isAdmin}
                        editMode={editMode}
                        onEdit={onEditLink}
                        onDelete={onDeleteLink}
-                       onToggleFavorite={onToggleFavorite}
                      />
                    ))}
                 </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Icon } from '@iconify/react';
-import { Search, Upload, Loader2, Info, X, Plus } from 'lucide-react';
+import { Search, Upload, Loader2, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import api from '../../lib/api';
+import { Button } from './button';
 
 interface IconPickerProps {
   value: string;
@@ -15,44 +16,197 @@ interface IconifyResult {
   total: number;
 }
 
+interface UploadedIcon {
+  url: string;
+  filename: string;
+  originalName?: string;
+  displayName?: string;
+}
+
 type IconPickerTab = 'library' | 'upload';
+type IconToneFilter = 'all' | 'color' | 'mono';
 
 const ICON_PICKER_TABS: { id: IconPickerTab; label: string }[] = [
   { id: 'library', label: 'Bibliothek (Alle Icons)' },
   { id: 'upload', label: 'Eigener Upload' },
 ];
 
+const ICON_TONE_FILTERS: { id: IconToneFilter; label: string }[] = [
+  { id: 'all', label: 'Alle' },
+  { id: 'color', label: 'Farbig' },
+  { id: 'mono', label: 'Ohne Farbe' },
+];
+
+const COLORFUL_ICON_PREFIXES = new Set([
+  'cib',
+  'circle-flags',
+  'cryptocurrency-color',
+  'devicon',
+  'emojione',
+  'flat-color-icons',
+  'flagpack',
+  'fxemoji',
+  'logos',
+  'noto',
+  'openmoji',
+  'skill-icons',
+  'streamline-color',
+  'token-branded',
+  'twemoji',
+  'vscode-icons',
+]);
+
+const DEFAULT_MONO_ICONS = [
+  'lucide:home',
+  'lucide:settings',
+  'lucide:user',
+  'lucide:mail',
+  'lucide:bell',
+  'lucide:search',
+  'lucide:heart',
+  'lucide:star',
+  'lucide:camera',
+  'lucide:image',
+  'lucide:briefcase',
+  'lucide:calendar',
+  'lucide:folder',
+  'lucide:shield',
+  'lucide:bookmark',
+  'lucide:server',
+  'lucide:database',
+  'lucide:monitor',
+  'lucide:smartphone',
+  'lucide:cloud',
+  'lucide:zap',
+  'lucide:rocket',
+  'lucide:shopping-cart',
+  'lucide:chart-column',
+  'mdi:web',
+  'mdi:account-group',
+  'mdi:briefcase-outline',
+  'mdi:folder-network-outline',
+  'mdi:finance',
+  'mdi:tools',
+  'mdi:printer-outline',
+  'mdi:video-outline',
+  'tabler:building-store',
+  'tabler:plug',
+  'tabler:cpu',
+  'tabler:car',
+  'tabler:headphones',
+  'tabler:world',
+  'solar:widget-4-outline',
+  'solar:notes-outline',
+];
+
+const DEFAULT_COLOR_ICONS = [
+  'logos:google-icon',
+  'logos:microsoft-icon',
+  'logos:apple',
+  'logos:slack-icon',
+  'logos:github-icon',
+  'logos:docker-icon',
+  'logos:kubernetes',
+  'logos:aws',
+  'logos:atlassian',
+  'logos:dropbox',
+  'logos:figma',
+  'logos:google-gmail',
+  'logos:google-drive',
+  'logos:google-meet',
+  'logos:zoom-icon',
+  'logos:notion-icon',
+  'logos:trello',
+  'logos:jira',
+  'logos:confluence',
+  'logos:airtable',
+  'logos:shopify',
+  'logos:stripe',
+  'logos:youtube-icon',
+  'logos:netflix',
+  'skill-icons:react-dark',
+  'skill-icons:typescript',
+  'skill-icons:javascript',
+  'skill-icons:nodejs-dark',
+  'skill-icons:postgresql-dark',
+  'skill-icons:redis-dark',
+  'skill-icons:azure-dark',
+  'skill-icons:gcp-light',
+  'flat-color-icons:calendar',
+  'flat-color-icons:advertising',
+  'flat-color-icons:assistant',
+  'flat-color-icons:globe',
+  'flat-color-icons:news',
+  'flat-color-icons:picture',
+  'twemoji:globe-with-meridians',
+  'twemoji:rocket',
+];
+
+const DEFAULT_LIBRARY_ICONS = [...DEFAULT_MONO_ICONS, ...DEFAULT_COLOR_ICONS];
+
+const isColorfulIcon = (iconName: string): boolean => {
+  const prefix = iconName.split(':')[0]?.toLowerCase() || '';
+  return COLORFUL_ICON_PREFIXES.has(prefix);
+};
+
+const getUploadedIconLabel = (icon: UploadedIcon): string =>
+  icon.displayName?.trim() || icon.originalName?.trim() || icon.filename;
+
 export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose }) => {
   const [activeTab, setActiveTab] = useState<IconPickerTab>('library');
   const [search, setSearch] = useState('');
-  const [icons, setIcons] = useState<string[]>([]);
+  const [icons, setIcons] = useState<string[]>(DEFAULT_LIBRARY_ICONS);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadedIcons, setUploadedIcons] = useState<{ url: string; filename: string }[]>([]);
+  const [uploadedIcons, setUploadedIcons] = useState<UploadedIcon[]>([]);
   const [loadingUploaded, setLoadingUploaded] = useState(false);
+  const [deletingFilename, setDeletingFilename] = useState<string | null>(null);
+  const [pendingDeleteIcon, setPendingDeleteIcon] = useState<UploadedIcon | null>(null);
+  const [toneFilter, setToneFilter] = useState<IconToneFilter>('all');
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Default icons for "Empty Search"
-  const defaultIcons = useMemo(() => [
-    'lucide:home', 'lucide:settings', 'lucide:user', 'lucide:mail', 'lucide:bell',
-    'lucide:search', 'lucide:heart', 'lucide:star', 'lucide:camera', 'lucide:image',
-    'mdi:facebook', 'mdi:twitter', 'mdi:instagram', 'mdi:github', 'mdi:linkedin',
-    'logos:google-icon', 'logos:microsoft-icon', 'logos:apple', 'logos:slack-icon'
-  ], []);
+  const filteredIcons = useMemo(() => {
+    if (toneFilter === 'all') {
+      return icons;
+    }
+
+    return icons.filter((iconName) => {
+      const colorful = isColorfulIcon(iconName);
+      return toneFilter === 'color' ? colorful : !colorful;
+    });
+  }, [icons, toneFilter]);
+
+  const selectedUploadedIcon = useMemo(
+    () => uploadedIcons.find((icon) => icon.url === value),
+    [uploadedIcons, value]
+  );
+
+  const loadUploadedIcons = async () => {
+    setLoadingUploaded(true);
+    try {
+      const res = await api.get<UploadedIcon[]>('/upload/');
+      setUploadedIcons(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setUploadedIcons([]);
+    } finally {
+      setLoadingUploaded(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab !== 'library') return;
 
     const timer = setTimeout(async () => {
       if (!search.trim()) {
-        setIcons(defaultIcons);
+        setIcons(DEFAULT_LIBRARY_ICONS);
         return;
       }
 
       setLoading(true);
       try {
         // Iconify Public API for searching
-        const response = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(search)}&limit=100`);
+        const response = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(search)}&limit=180`);
         const data: IconifyResult = await response.json();
         setIcons(data.icons || []);
       } catch (err) {
@@ -63,15 +217,11 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [search, activeTab, defaultIcons]);
+  }, [search, activeTab]);
 
   useEffect(() => {
     if (activeTab !== 'upload') return;
-    setLoadingUploaded(true);
-    api.get<{ url: string; filename: string }[]>('/upload/')
-      .then(res => setUploadedIcons(res.data || []))
-      .catch(() => setUploadedIcons([]))
-      .finally(() => setLoadingUploaded(false));
+    void loadUploadedIcons();
   }, [activeTab]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,15 +231,16 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
     e.target.value = '';
 
     setUploading(true);
+    setUploadMessage(null);
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const res = await api.post('/upload/icon', formData);
-      const newIcon = { url: res.data.url, filename: res.data.filename };
-      setUploadedIcons(prev => [newIcon, ...prev]);
-      onChange(res.data.url);
-      onClose();
+      const res = await api.post<UploadedIcon>('/upload/icon', formData);
+      const newIcon = res.data;
+      setUploadedIcons((prev) => [newIcon, ...prev.filter((icon) => icon.filename !== newIcon.filename)]);
+      onChange(newIcon.url);
+      setUploadMessage(`Hochgeladen: ${getUploadedIconLabel(newIcon)}`);
     } catch (err) {
       console.error('Upload failed', err);
       alert('Fehler beim Upload. Bitte erneut versuchen.');
@@ -98,25 +249,49 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
     }
   };
 
-  return (
-    <div className="flex flex-col h-[520px] bg-card overflow-hidden">
-      {/* Header */}
-      <div className="p-4 border-b border-border flex items-center justify-between bg-muted/10">
-        <h3 className="text-sm font-black uppercase tracking-widest text-foreground/80">Icon wählen</h3>
-        <button onClick={onClose} className="p-1 hover:bg-muted rounded-md transition-colors">
-          <X className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </div>
+  const confirmDeleteUploadedIcon = async () => {
+    if (!pendingDeleteIcon) {
+      return;
+    }
 
+    const icon = pendingDeleteIcon;
+    const label = getUploadedIconLabel(icon);
+    setDeletingFilename(icon.filename);
+    setUploadMessage(null);
+
+    try {
+      await api.delete(`/upload/${encodeURIComponent(icon.filename)}`);
+      setUploadedIcons((prev) => prev.filter((item) => item.filename !== icon.filename));
+
+      if (value === icon.url) {
+        onChange('');
+      }
+
+      setUploadMessage(`Gelöscht: ${label}`);
+      setPendingDeleteIcon(null);
+    } catch (err) {
+      console.error('Delete failed', err);
+      alert('Icon konnte nicht gelöscht werden. Bitte erneut versuchen.');
+    } finally {
+      setDeletingFilename(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-[680px] lg:h-[740px] bg-card overflow-hidden">
       {/* Tab Navigation */}
-      <div className="flex border-b border-border bg-muted/30 p-1.5 gap-1.5">
+      <div className="flex border-b border-border bg-muted/30 p-2 gap-2">
         {ICON_PICKER_TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => { setActiveTab(t.id); setSearch(''); }}
+            onClick={() => {
+              setActiveTab(t.id);
+              setSearch('');
+              setUploadMessage(null);
+            }}
             type="button"
             className={cn(
-              "flex-1 py-2 text-[11px] font-bold rounded transition-colors uppercase tracking-widest",
+              "flex-1 py-3 text-xs font-bold rounded-lg transition-colors uppercase tracking-widest",
               activeTab === t.id ? "bg-background shadow-md text-accent border border-accent/20" : "text-muted-foreground hover:bg-background/40"
             )}
           >
@@ -125,71 +300,101 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
         ))}
       </div>
 
-      <div className="p-4 flex-1 overflow-hidden flex flex-col">
+      <div className="p-5 lg:p-6 flex-1 overflow-hidden flex flex-col">
         {activeTab === 'library' ? (
-          <div className="space-y-4 flex flex-col h-full">
+          <div className="space-y-5 flex flex-col h-full">
             {/* Search Bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-accent animate-spin" />}
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-accent animate-spin" />}
               <input
                 type="text"
                 autoFocus
                 placeholder="Suche in 200.000+ Icons (z.B. home, car, google)..."
-                className="w-full bg-background border border-border rounded-lg pl-10 pr-10 py-2.5 text-sm focus:ring-1 focus:ring-accent outline-none ring-accent/20 transition-shadow font-medium"
+                className="w-full bg-background border border-border rounded-xl pl-12 pr-12 py-3.5 text-base focus:ring-1 focus:ring-accent outline-none ring-accent/20 transition-shadow font-medium"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            
-            {/* Legend / Info */}
-            {!search && (
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground bg-muted/30 p-2 rounded-md border border-border/20">
-                <Info className="h-3.5 w-3.5 text-accent" />
-                <span>Nutzt die Iconify API für Zugriff auf Material, Lucide, Brand-Logos & mehr.</span>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-muted/20 p-1">
+                {ICON_TONE_FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setToneFilter(filter.id)}
+                    className={cn(
+                      'px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors',
+                      toneFilter === filter.id
+                        ? 'bg-background text-accent shadow-sm border border-accent/20'
+                        : 'text-muted-foreground hover:bg-background/50'
+                    )}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
-            )}
+
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{filteredIcons.length} Icons sichtbar</span>
+            </div>
 
             {/* Icon Grid */}
-            <div className="grid grid-cols-5 gap-2 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-              {icons.map((name: string) => (
+            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+              {filteredIcons.map((name: string) => (
                 <button
                   key={name}
                   type="button"
                   onClick={() => { onChange(name); onClose(); }}
                   className={cn(
-                    "p-3 rounded-lg flex flex-col items-center justify-center gap-1.5 hover:bg-accent/10 transition-colors border border-transparent hover:border-accent/20 group h-[85px]",
+                    "p-4 rounded-xl flex flex-col items-center justify-center gap-2.5 hover:bg-accent/10 transition-colors border border-transparent hover:border-accent/20 group h-[118px]",
                     value === name ? "bg-accent/15 text-accent border-accent/40 shadow-inner" : "text-muted-foreground"
                   )}
                   title={name}
                 >
-                  <div className="h-8 w-8 flex items-center justify-center group-hover:scale-125 transition-transform duration-300">
-                    <Icon icon={name} className="h-7 w-7" />
+                  <div className="h-12 w-12 flex items-center justify-center group-hover:scale-125 transition-transform duration-300">
+                    <Icon icon={name} className="h-10 w-10" />
                   </div>
-                  <span className="text-[8px] truncate w-full text-center font-bold opacity-60 group-hover:opacity-100">
+                  <span className="text-[10px] truncate w-full text-center font-bold opacity-60 group-hover:opacity-100">
                     {name.split(':').pop()}
                   </span>
                 </button>
               ))}
               
-              {!loading && icons.length === 0 && search && (
-                <div className="col-span-5 h-48 flex flex-col items-center justify-center text-muted-foreground gap-3">
+              {!loading && filteredIcons.length === 0 && (
+                <div className="col-span-full h-48 flex flex-col items-center justify-center text-muted-foreground gap-3">
                    <div className="p-4 bg-muted/30 rounded-full">
                      <Search className="h-8 w-8 opacity-20" />
                    </div>
-                   <p className="text-xs italic">Keine Icons für "{search}" gefunden.</p>
+                   <p className="text-xs italic text-center max-w-[240px]">
+                     {search
+                       ? `Keine ${toneFilter === 'all' ? '' : toneFilter === 'color' ? 'farbigen ' : 'monochromen '}Icons für "${search}" gefunden.`
+                       : 'Für diesen Filter sind in der aktuellen Auswahl keine Icons vorhanden.'}
+                   </p>
                 </div>
               )}
             </div>
           </div>
         ) : (
           <div className="flex flex-col h-full gap-3">
+            {uploadMessage && (
+              <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-xs font-medium text-foreground/85">
+                {uploadMessage}
+              </div>
+            )}
+
             {/* Upload button row */}
-            <label className={cn("cursor-pointer flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-accent/40 bg-accent/5 hover:bg-accent/10 transition-colors text-accent text-xs font-bold uppercase tracking-widest", uploading && "opacity-50 pointer-events-none")}>
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            <label className={cn("cursor-pointer flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl border border-dashed border-accent/40 bg-accent/5 hover:bg-accent/10 transition-colors text-accent text-xs font-bold uppercase tracking-widest", uploading && "opacity-50 pointer-events-none")}>
+              {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
               {uploading ? 'Wird hochgeladen...' : 'Neues Icon hochladen'}
               <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
             </label>
+
+            {selectedUploadedIcon && (
+              <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                Ausgewählt: <span className="font-semibold text-foreground">{getUploadedIconLabel(selectedUploadedIcon)}</span>
+              </div>
+            )}
 
             {/* Uploaded icons grid */}
             {loadingUploaded ? (
@@ -204,41 +409,107 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                 <p className="text-xs font-black uppercase tracking-tight">Noch keine Icons hochgeladen</p>
                 <p className="text-[11px] text-muted-foreground max-w-[200px]">Lade dein erstes Icon hoch, um es hier zu sehen.</p>
                 <div className="pt-3 border-t border-border/20 w-full flex justify-between px-6 text-[9px] text-muted-foreground/60 font-medium">
-                  <span>SVG, PNG, WEBP</span>
+                  <span>Alle Bildformate</span>
                   <span>MAX 2MB</span>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-5 gap-2 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
                 {uploadedIcons.map(icon => (
-                  <button
+                  <div
                     key={icon.filename}
-                    type="button"
-                    onClick={() => { onChange(icon.url); onClose(); }}
                     className={cn(
-                      "p-2 rounded-lg flex flex-col items-center justify-center gap-1.5 hover:bg-accent/10 transition-colors border border-transparent hover:border-accent/20 group h-[85px]",
-                      value === icon.url ? "bg-accent/15 border-accent/40 shadow-inner" : ""
+                      'relative rounded-xl border transition-colors h-[148px]',
+                      value === icon.url ? 'border-accent/40 bg-accent/10 shadow-inner' : 'border-transparent hover:border-accent/20'
                     )}
-                    title={icon.filename}
                   >
-                    <div className="h-10 w-10 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                      <img
-                        src={icon.url}
-                        alt={icon.filename}
-                        className="max-h-10 max-w-10 object-contain rounded"
-                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    </div>
-                    <span className="text-[8px] truncate w-full text-center font-bold text-muted-foreground opacity-60 group-hover:opacity-100">
-                      {icon.filename.replace(/^icon-\d+-\d+/, '').replace(/^-/, '') || icon.filename}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => { onChange(icon.url); onClose(); }}
+                      className="w-full h-full p-3 rounded-xl flex flex-col items-center justify-center gap-3 hover:bg-accent/10 transition-colors group"
+                      title={getUploadedIconLabel(icon)}
+                    >
+                      <div className="h-14 w-14 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                        <img
+                          src={icon.url}
+                          alt={getUploadedIconLabel(icon)}
+                          className="max-h-14 max-w-14 object-contain rounded"
+                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </div>
+                      <span className="w-full text-center text-xs font-semibold text-foreground/85 leading-tight break-all max-h-10 overflow-hidden">
+                        {getUploadedIconLabel(icon)}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPendingDeleteIcon(icon);
+                      }}
+                      disabled={deletingFilename === icon.filename}
+                      className="absolute top-1.5 right-1.5 rounded-md border border-border/50 bg-background/90 p-1 text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors disabled:pointer-events-none"
+                      title={`${getUploadedIconLabel(icon)} löschen`}
+                    >
+                      {deletingFilename === icon.filename ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {pendingDeleteIcon && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Löschdialog schließen"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setPendingDeleteIcon(null)}
+          />
+
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-card shadow-2xl">
+            <div className="border-b border-[hsl(var(--glass-border)/0.05)] px-6 py-5">
+              <div className="space-y-2 text-left">
+                <h3 className="text-base font-black uppercase tracking-[0.18em] text-foreground/90">
+                  Icon löschen
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {`Soll "${getUploadedIconLabel(pendingDeleteIcon)}" wirklich entfernt werden?`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-5">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPendingDeleteIcon(null)}
+                className="rounded-xl"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => void confirmDeleteUploadedIcon()}
+                disabled={deletingFilename === pendingDeleteIcon.filename}
+                className="gap-2 rounded-xl"
+              >
+                {deletingFilename === pendingDeleteIcon.filename && <Loader2 className="h-4 w-4 animate-spin" />}
+                Löschen
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

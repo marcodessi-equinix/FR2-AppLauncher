@@ -9,6 +9,7 @@ import { DynamicIcon } from '../ui/DynamicIcon';
 import api from '../../lib/api';
 import { Group } from '../../types';
 import { useQueryClient } from '@tanstack/react-query';
+import { upsertGroupInDashboard } from '../../lib/dashboardData';
 
 interface ManageGroupModalProps {
   isOpen: boolean;
@@ -45,12 +46,15 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
     setIsLoading(true);
 
     try {
+      let savedGroup: Group;
       if (group) {
-         await api.put(`/groups/${group.id}`, { title, order, icon });
+        const response = await api.put<Group>(`/groups/${group.id}`, { title, order, icon });
+        savedGroup = response.data;
       } else {
-         await api.post('/groups', { title, order, icon });
+        const response = await api.post<Group>('/groups', { title, order, icon });
+        savedGroup = response.data;
       }
-      await queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
+      queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => upsertGroupInDashboard(current, savedGroup));
       onClose();
     } catch (error) {
       console.error('Failed to save group', error);
@@ -72,6 +76,9 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
           </h2>
           <button 
             onClick={onClose}
+            type="button"
+            title="Close group modal"
+            aria-label="Close group modal"
             className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
           >
             <X className="h-5 w-5" />
@@ -140,11 +147,14 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
             className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={() => setShowIconPicker(false)}
           />
-          <Card className="w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
+          <Card className="w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
             <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] py-4 px-6">
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">Select Icon</h3>
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">Icon auswählen</h3>
               <button 
                 onClick={() => setShowIconPicker(false)}
+                type="button"
+                title="Close icon picker"
+                aria-label="Close icon picker"
                 className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
               >
                 <X className="h-5 w-5" />

@@ -21,7 +21,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { setIsAdmin } = useStore();
+  const setIsAdmin = useStore((state) => state.setIsAdmin);
 
   React.useEffect(() => {
     if (isOpen) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Lock, Unlock, Moon, Sun, LogOut, Upload, Info } from 'lucide-react';
+import { Search, Lock, Unlock, Moon, Sun, LogOut, Upload, Info, Download } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { LoginModal } from '../admin/LoginModal';
 import { WeatherModal } from '../widgets/WeatherModal';
@@ -9,18 +9,29 @@ import api, { parseBookmarks, ImportPreviewData } from '../../lib/api';
 import { Button } from '../ui/button';
 import { LiveClock } from './Clocks';
 import { InfoModal } from '../dashboard/InfoModal';
+import { downloadBookmarksFile } from '../../lib/bookmarkExport';
 
 export const Header: React.FC = () => {
-  const { searchQuery, setSearchQuery, isAdmin, setIsAdmin, toggleEditMode, editMode, theme, setTheme } = useStore();
+  const searchQuery = useStore((state) => state.searchQuery);
+  const setSearchQuery = useStore((state) => state.setSearchQuery);
+  const isAdmin = useStore((state) => state.isAdmin);
+  const setIsAdmin = useStore((state) => state.setIsAdmin);
+  const toggleEditMode = useStore((state) => state.toggleEditMode);
+  const editMode = useStore((state) => state.editMode);
+  const theme = useStore((state) => state.theme);
+  const setTheme = useStore((state) => state.setTheme);
+  const groups = useStore((state) => state.groups);
   const [isLoginOpen, setIsLoginOpen] = React.useState(false);
   const [isWeatherOpen, setIsWeatherOpen] = React.useState(false);
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
   
   // Import State
   const [importData, setImportData] = React.useState<ImportPreviewData | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
 
   const { weather, loading: weatherLoading } = useWeather();
+  const hasExportableLinks = groups.some((group) => (group.links?.length || 0) > 0);
   
   // File upload ref
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -41,6 +52,22 @@ export const Header: React.FC = () => {
 
   const handleThemeToggle = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleExportClick = () => {
+    if (!hasExportableLinks) {
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      downloadBookmarksFile(groups);
+    } catch (error) {
+      console.error('Export failed', error);
+      alert('Fehler beim Export der Lesezeichen.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,6 +185,18 @@ export const Header: React.FC = () => {
                       title="Lesezeichen importieren"
                       onChange={handleFileChange}
                     />
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-primary hover:bg-primary/10 disabled:text-muted-foreground/50"
+                      title={hasExportableLinks ? 'Alle App-Links als Chrome-Lesezeichen herunterladen' : 'Keine Links zum Export vorhanden'}
+                      aria-label="Lesezeichen exportieren"
+                      onClick={handleExportClick}
+                      disabled={isExporting || !hasExportableLinks}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
 
                     {editMode && (
                       <Button
