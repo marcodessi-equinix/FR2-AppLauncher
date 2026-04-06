@@ -19,7 +19,7 @@ services:
       - ALLOW_INSECURE_DEFAULTS=false
     healthcheck:
       test:
-        ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+        ["CMD", "node", "-e", "require('node:http').get('http://127.0.0.1:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -43,7 +43,7 @@ services:
       dockerfile: Dockerfile.frontend
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     networks:
       - fr2-applauncher
       - proxy-network

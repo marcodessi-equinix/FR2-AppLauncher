@@ -118,9 +118,10 @@ router.post(['/', '/icon'], requireAdmin, upload.single('file'), (req, res) => {
     }
 
     const metadata = readIconMetadata();
-    const displayName = req.file.originalname || getFallbackDisplayName(req.file.filename);
+    const safeOriginalName = (req.file.originalname || req.file.filename).replace(/[<>"'&]/g, '_');
+    const displayName = safeOriginalName || getFallbackDisplayName(req.file.filename);
     metadata[req.file.filename] = {
-      originalName: req.file.originalname || req.file.filename,
+      originalName: safeOriginalName,
       displayName,
       uploadedAt: Date.now()
     };

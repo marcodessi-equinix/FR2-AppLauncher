@@ -26,7 +26,7 @@ router.post('/info', requireAdmin, (req, res) => {
         img: ['src', 'alt', 'title'],
         '*': ['class'],
       },
-      allowedSchemes: ['http', 'https', 'mailto', 'data'],
+      allowedSchemes: ['http', 'https', 'mailto'],
       disallowedTagsMode: 'discard',
     });
     const stmt = db.prepare('INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value');

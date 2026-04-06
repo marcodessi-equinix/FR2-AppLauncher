@@ -30,6 +30,11 @@ router.post('/', requireAdmin, (req, res) => {
   const { group_id, title, url, description, icon, order } = result.data;
 
   try {
+    const groupCheck = db.prepare('SELECT id FROM groups WHERE id = ?').get(group_id) as { id: number } | undefined;
+    if (!groupCheck) {
+      return res.status(400).json({ error: 'Group does not exist' });
+    }
+
     const stmt = db.prepare(
       'INSERT INTO links (group_id, title, url, description, icon, "order") VALUES (?, ?, ?, ?, ?, ?)'
     );

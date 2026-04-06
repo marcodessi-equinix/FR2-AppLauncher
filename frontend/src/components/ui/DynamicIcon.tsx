@@ -22,10 +22,11 @@ export const DynamicIcon: React.FC<DynamicIconProps> = ({
 }) => {
   if (!icon) return <>{fallback}</>;
 
-  // Check for image assets (Uploads, remote URLs, data-URIs)
-  const isImage = icon.startsWith('/') || icon.startsWith('http') || icon.startsWith('data:');
+  // Check for image assets (Uploads, remote URLs, safe data-URIs)
+  const isImage = icon.startsWith('/') || icon.startsWith('http');
+  const isSafeDataUri = icon.startsWith('data:image/');
   
-  if (isImage) {
+  if (isImage || isSafeDataUri) {
     return (
       <img 
         src={icon} 
@@ -33,6 +34,11 @@ export const DynamicIcon: React.FC<DynamicIconProps> = ({
         className={cn("object-contain", className)} 
       />
     );
+  }
+
+  // Reject non-image data: URIs entirely
+  if (icon.startsWith('data:')) {
+    return <>{fallback}</>;
   }
 
   // Handle Iconify (new system) or legacy Lucide names

@@ -1,6 +1,25 @@
 import * as cheerio from 'cheerio';
 import db from '../db/index';
 
+function isAllowedUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedIcon(icon: string): boolean {
+  if (!icon) return false;
+  if (icon.length > 500000) return false;
+  // Allow data:image/* base64 icons and http(s) URLs only
+  if (icon.startsWith('data:')) {
+    return /^data:image\//i.test(icon);
+  }
+  return isAllowedUrl(icon);
+}
+
 interface ImportResult {
   success: boolean;
   groups: number;
@@ -58,14 +77,12 @@ export function parseBookmarksFromHtml(html: string): ImportPreviewData {
               const title = $link.text().trim();
               const url = $link.attr('href');
               
-              // Vermeide "place:" URLs (interne Browser-Links) oder ungültige hrefs
-              if (title && url && !url.startsWith('place:')) {
-                  // Icon verarbeiten (falls vorhanden)
+              // Vermeide ungültige oder gefährliche URLs
+              if (title && url && isAllowedUrl(url)) {
+                  // Icon verarbeiten und validieren
                   let icon = $link.attr('icon') || '';
-                  
-                  // Fehlerhafte Icons (wie extrem lange, defekte Base64 Strings) abfangen
-                  if (icon && icon.length > 500000) { 
-                      icon = ''; // Zu groß, ignorieren
+                  if (icon && !isAllowedIcon(icon)) {
+                      icon = '';
                   }
 
                   groupLinks.push({ title, url, icon });
