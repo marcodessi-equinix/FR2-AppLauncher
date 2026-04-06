@@ -9,9 +9,6 @@
     <meta name="description" content="Enterprise Application Access Platform" />
   </head>
   <body>
-    <!-- Die Runtime Config MUSS vor der React App (main.tsx) geladen werden,
-         sonst stürzt api.ts beim Booten ab, weil window.RUNTIME_CONFIG fehlt! -->
-    <script src="/runtime-config.js"></script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

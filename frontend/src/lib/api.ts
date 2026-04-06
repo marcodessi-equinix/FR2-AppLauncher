@@ -6,13 +6,9 @@ const normalizeApiBase = (base: string): string => {
 };
 
 const runtimeApiUrl = String(window.RUNTIME_CONFIG?.API_URL || '').trim();
-if (!runtimeApiUrl) {
-  throw new Error(
-    'window.RUNTIME_CONFIG.API_URL is missing. Frontend bootstrap must load runtime-config.js first.'
-  );
-}
+const fallbackApiUrl = `${window.location.origin.replace(/\/$/, '')}/api`;
 
-const API_BASE = normalizeApiBase(runtimeApiUrl);
+const API_BASE = normalizeApiBase(runtimeApiUrl || fallbackApiUrl);
 
 const isLikelyHtml = (value: unknown): boolean => {
   if (typeof value !== 'string') return false;
