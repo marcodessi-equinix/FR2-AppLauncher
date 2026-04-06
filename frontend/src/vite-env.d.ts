@@ -9,4 +9,5 @@ interface Window {
 }
 
 declare const __APP_VERSION__: string;
+declare const __APP_BUILD_VERSION__: string;
 declare const __BUILD_DATE__: string;

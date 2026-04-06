@@ -15,6 +15,7 @@ interface VersionChangelogDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   currentVersion: string;
+  releaseVersion: string;
   buildDate: string;
 }
 
@@ -22,6 +23,7 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
   isOpen,
   onOpenChange,
   currentVersion,
+  releaseVersion,
   buildDate,
 }) => {
   return (
@@ -44,7 +46,7 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
                       {currentVersion}
                     </DialogTitle>
                     <DialogDescription className="max-w-2xl text-sm leading-relaxed text-muted-foreground/80">
-                      Alle sichtbaren Änderungen dieser App-Version. Build-Datum: {buildDate}
+                      Release-Stand: {releaseVersion}. Die Versionshistorie unten pflegst du nur für größere Updates manuell. Build-Datum: {buildDate}
                     </DialogDescription>
                   </div>
                 </div>

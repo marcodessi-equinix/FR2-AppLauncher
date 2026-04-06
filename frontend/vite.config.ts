@@ -27,13 +27,31 @@ const resolvePackageVersion = (): string => {
   return '0.1.0'
 }
 
+const createBuildRevision = (): string =>
+  new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)
+
+const createDisplayBuildVersion = (releaseVersion: string, buildNumber: string): string => {
+  const normalizedReleaseVersion = releaseVersion.replace(/^v/i, '')
+  const versionParts = normalizedReleaseVersion.split('.')
+
+  if (versionParts.length >= 3 && versionParts[2] === '0') {
+    return `${versionParts[0]}.${versionParts[1]}.${buildNumber}`
+  }
+
+  return `${normalizedReleaseVersion}.${buildNumber}`
+}
+
 const resolvedAppVersion = process.env.VITE_APP_VERSION || `v${resolvePackageVersion()}`
+const resolvedBuildRevision = process.env.VITE_BUILD_REVISION || createBuildRevision()
+const resolvedBuildNumber = resolvedBuildRevision.slice(-3)
+const resolvedBuildVersion = createDisplayBuildVersion(resolvedAppVersion, resolvedBuildNumber)
 const resolvedBuildDate = new Date().toISOString().slice(0, 10)
 
 export default defineConfig({
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(resolvedAppVersion),
+    __APP_BUILD_VERSION__: JSON.stringify(resolvedBuildVersion),
     __BUILD_DATE__: JSON.stringify(resolvedBuildDate),
   },
   resolve: {

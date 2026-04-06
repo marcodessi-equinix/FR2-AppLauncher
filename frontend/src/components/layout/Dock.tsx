@@ -12,7 +12,8 @@ export const Dock: React.FC = () => {
   const activeCategory = useStore((state) => state.activeCategory);
   const setActiveCategory = useStore((state) => state.setActiveCategory);
   const favorites = useStore((state) => state.favorites);
-  const version = getLatestChangelogEntry()?.version || import.meta.env.VITE_APP_VERSION || __APP_VERSION__ || 'v0.1.0';
+  const releaseVersion = getLatestChangelogEntry()?.version || import.meta.env.VITE_APP_VERSION || __APP_VERSION__ || 'v0.1.0';
+  const buildVersion = __APP_BUILD_VERSION__ || releaseVersion;
   const buildDate = __BUILD_DATE__;
   const [isVersionDialogOpen, setIsVersionDialogOpen] = React.useState(false);
 
@@ -79,11 +80,11 @@ export const Dock: React.FC = () => {
                 className="relative flex items-center gap-2 rounded-full border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.03)] px-2.5 py-1.5 text-muted-foreground/70 transition-colors hover:border-primary/20 hover:text-foreground"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500/80" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.22em]">{version}</span>
+                <span className="text-[9px] font-bold uppercase tracking-[0.22em]">{buildVersion}</span>
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={12} className="font-bold text-xs tracking-wider">
-              Versionshinweise anzeigen
+              Versionshinweise und Build-Version anzeigen
             </TooltipContent>
           </Tooltip>
         </div>
@@ -92,7 +93,8 @@ export const Dock: React.FC = () => {
       <VersionChangelogDialog
         isOpen={isVersionDialogOpen}
         onOpenChange={handleVersionDialogChange}
-        currentVersion={version}
+        currentVersion={buildVersion}
+        releaseVersion={releaseVersion}
         buildDate={buildDate}
       />
     </div>
