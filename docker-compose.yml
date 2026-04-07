@@ -40,7 +40,6 @@ services:
       - backend
     networks:
       - fr2-applauncher
-      - proxy
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -53,9 +52,6 @@ services:
 networks:
   fr2-applauncher:
     driver: bridge
-  proxy:
-    name: ${PROXY_NETWORK:-nginx-proxy-manager_default}
-    external: ${PROXY_NETWORK_EXTERNAL:-false}
 
 volumes:
   fr2-applauncher-data:
