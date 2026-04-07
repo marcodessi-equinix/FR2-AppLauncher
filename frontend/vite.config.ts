@@ -1,5 +1,6 @@
 import fs from "fs"
 import path from "path"
+import { execSync } from "child_process"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
@@ -27,24 +28,49 @@ const resolvePackageVersion = (): string => {
   return '0.1.0'
 }
 
-const createBuildRevision = (): string =>
-  new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)
-
-const createDisplayBuildVersion = (releaseVersion: string, buildNumber: string): string => {
-  const normalizedReleaseVersion = releaseVersion.replace(/^v/i, '')
-  const versionParts = normalizedReleaseVersion.split('.')
-
-  if (versionParts.length >= 3 && versionParts[2] === '0') {
-    return `${versionParts[0]}.${versionParts[1]}.${buildNumber}`
+const normalizeBuildNumber = (value: string): string => {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return '001'
   }
 
-  return `${normalizedReleaseVersion}.${buildNumber}`
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed.padStart(3, '0')
+  }
+
+  return trimmed
+}
+
+const resolveGitBuildNumber = (): string | null => {
+  try {
+    const repoRoot = path.resolve(__dirname, '..')
+    const gitDir = path.join(repoRoot, '.git')
+    if (!fs.existsSync(gitDir)) {
+      return null
+    }
+
+    const count = execSync('git rev-list --count HEAD', {
+      cwd: repoRoot,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim()
+
+    return count ? normalizeBuildNumber(count) : null
+  } catch {
+    return null
+  }
+}
+
+const resolveBuildNumber = (): string => {
+  const explicitBuildNumber = process.env.VITE_BUILD_NUMBER || process.env.BUILD_NUMBER
+  if (explicitBuildNumber) {
+    return normalizeBuildNumber(explicitBuildNumber)
+  }
+
+  return resolveGitBuildNumber() || '001'
 }
 
 const resolvedAppVersion = process.env.VITE_APP_VERSION || `v${resolvePackageVersion()}`
-const resolvedBuildRevision = process.env.VITE_BUILD_REVISION || createBuildRevision()
-const resolvedBuildNumber = resolvedBuildRevision.slice(-3)
-const resolvedBuildVersion = createDisplayBuildVersion(resolvedAppVersion, resolvedBuildNumber)
+const resolvedBuildVersion = resolveBuildNumber()
 const resolvedBuildDate = new Date().toISOString().slice(0, 10)
 
 export default defineConfig({

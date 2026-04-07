@@ -134,6 +134,7 @@ Ohne diese beiden Werte startet der Stack nicht.
 | `FRONTEND_PORT` | Host-Port für das Frontend | `9020` |
 | `DATABASE_PATH` | SQLite-Datei im Container | `/app/data/applauncher.db` |
 | `PROXY_NETWORK` | Externes Netzwerk für Nginx Proxy Manager | `nginx-proxy-manager_default` |
+| `VITE_BUILD_NUMBER` | sichtbarer Build-Stand im Format `001`, `002`, `003` | `001` |
 | `FRONTEND_URL` | zusätzliche erlaubte Origins, kommagetrennt | leer |
 | `COOKIE_SECURE` | nur bei HTTPS auf `true` setzen | `false` |
 
@@ -225,6 +226,7 @@ PORT=3000
 FRONTEND_PORT=9020
 DATABASE_PATH=/app/data/applauncher.db
 PROXY_NETWORK=nginx-proxy-manager_default
+VITE_BUILD_NUMBER=001
 FRONTEND_URL=
 COOKIE_SECURE=false
 ALLOW_INSECURE_DEFAULTS=false
@@ -236,6 +238,7 @@ Wichtig:
 
 - `JWT_SECRET` darf nicht leer sein und sollte mindestens 32 Zeichen lang sein.
 - `ADMIN_PASSWORD` darf nicht leer sein. Klartext ist erlaubt, ein bcrypt-Hash ebenfalls.
+- `VITE_BUILD_NUMBER` ist der sichtbare Build-Stand. Wenn du nach einem Release kleine Folgeaenderungen machst, kannst du ihn als `001`, `002`, `003` weiterzaehlen.
 - `FRONTEND_URL` im Standardfall leer lassen. Nur setzen, wenn du bewusst zusätzliche Origins erlauben willst.
 - `COOKIE_SECURE=false` ist für direkten HTTP-Zugriff gedacht. Hinter einem HTTPS-Reverse-Proxy kann die App HTTPS normalerweise automatisch erkennen; falls dein Proxy `X-Forwarded-Proto` nicht korrekt weiterreicht, setze `COOKIE_SECURE=true` explizit.
 
