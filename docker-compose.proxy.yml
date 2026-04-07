@@ -1,0 +1,21 @@
+# Use this file when running behind a reverse proxy (Nginx Proxy Manager, Traefik, etc.)
+# that connects via a shared Docker/Podman network.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --build
+#
+# Or set in your .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.proxy.yml
+#
+# Make sure to set PROXY_NETWORK in your .env to the name of your proxy's network,
+# e.g. PROXY_NETWORK=nginx-proxy-manager_default
+
+services:
+  frontend:
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?Set PROXY_NETWORK in .env to your reverse proxy network name}
