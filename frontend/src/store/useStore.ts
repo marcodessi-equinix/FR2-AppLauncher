@@ -121,7 +121,7 @@ export const useStore = create<AppState>()(
       setActiveCategory: (category) => set({ activeCategory: category }),
     }),
     {
-      name: 'fr2-applauncher-storage',
+      name: 'applauncher-storage',
       partialize: (state) => ({ theme: state.theme, activeCategory: state.activeCategory, preferredLanguage: state.preferredLanguage }),
     }
   )

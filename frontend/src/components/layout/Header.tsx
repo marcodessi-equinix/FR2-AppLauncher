@@ -97,13 +97,13 @@ export const Header: React.FC = () => {
             <div className="flex items-center gap-3 shrink-0 xl:justify-self-start">
               <div className="brand-lockup flex items-center gap-3">
                 <img 
-                  src="/FR2 App Launcher logo.png" 
-                  alt="FR2 AppLauncher" 
+                  src="/logo.png" 
+                  alt="AppLauncher" 
                   className="h-9 w-auto object-contain drop-shadow-[0_12px_24px_hsl(var(--glow)/0.22)]"
                 />
                 <div className="flex flex-col">
-                  <span className="brand-title text-base font-black tracking-tight leading-tight md:text-[1.1rem]">FR2 AppLauncher</span>
-                  <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.24em] leading-none mt-1">Enterprise Access Platform</span>
+                  <span className="brand-title text-base font-black tracking-tight leading-tight md:text-[1.1rem]">AppLauncher</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.24em] leading-none mt-1">Application Access Platform</span>
                 </div>
               </div>
             </div>

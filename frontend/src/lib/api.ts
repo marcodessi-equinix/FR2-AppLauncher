@@ -148,18 +148,4 @@ export const executeImport = async (data: ImportPreviewData, keepExisting: boole
     return parseJsonResponse<Record<string, unknown>>(response, 'Import');
 }
 
-/** @deprecated Use parseBookmarks + executeImport flow */
-export const uploadBookmarks = async (file: File) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await fetch(`${API_BASE}/admin/import-bookmarks`, {
-    method: 'POST',
-    body: formData,
-    // Native fetch automatically sets Content-Type to multipart/form-data with boundary
-  });
-
-  return parseJsonResponse<Record<string, unknown>>(response, 'Upload');
-};
-
 export default api;

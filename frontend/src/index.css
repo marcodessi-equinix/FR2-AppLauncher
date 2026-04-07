@@ -385,155 +385,81 @@
    SPLASH INTRO ANIMATIONS
    ================================================== */
 
-/* ==================================================
-   CINEMATIC SPLASH INTRO ANIMATIONS
-   ================================================= */
-
-@keyframes orbit-rotate {
-  0% { transform: rotate(0deg) scale(0.9); opacity: 0; filter: blur(10px); }
-  30% { opacity: 0.6; filter: blur(0); }
-  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+/* Dissolve out: blur + scale + fade */
+.splash-dissolve {
+  animation: splash-dissolve 1.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+@keyframes splash-dissolve {
+  0%   { opacity: 1; filter: blur(0) brightness(1);   transform: scale(1); }
+  40%  { opacity: 1; filter: blur(4px) brightness(1.3); transform: scale(1.02); }
+  100% { opacity: 0; filter: blur(40px) brightness(0.6); transform: scale(1.08); }
 }
 
-@keyframes orbit-pulse {
-  0%, 100% { filter: drop-shadow(0 0 10px var(--primary)) brightness(1); border-color: rgba(var(--primary-rgb), 0.3); }
-  50% { filter: drop-shadow(0 0 25px var(--primary)) brightness(1.3); border-color: rgba(var(--primary-rgb), 0.8); }
+/* Aurora gradient background */
+.splash-aurora {
+  background:
+    radial-gradient(ellipse 80% 60% at 40% 40%, hsla(220,90%,55%,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 70% 30%, hsla(270,80%,55%,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 30% 70%, hsla(190,80%,50%,0.04) 0%, transparent 60%);
+  animation: splash-aurora-drift 8s ease-in-out infinite alternate;
+}
+@keyframes splash-aurora-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(20px, -10px) scale(1.05); }
 }
 
-@keyframes arrow-materialize {
-  0% { opacity: 0; transform: scale(0.7) translate(-30px, -20px); filter: blur(10px); }
-  100% { opacity: 1; transform: scale(1) translate(0, 0); filter: blur(0); }
+/* Spinning ring */
+.splash-spin {
+  animation: splash-spin 6s linear infinite;
+  transform-origin: center;
+}
+.splash-spin-reverse {
+  animation: splash-spin 8s linear infinite reverse;
+  transform-origin: center;
+}
+@keyframes splash-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
-@keyframes arrow-drift {
-  0%, 100% { transform: translate(0, 0) rotate(-1deg); }
-  50% { transform: translate(8px, -6px) rotate(1deg); }
+/* Glow breathing */
+.splash-glow-breathe {
+  animation: splash-glow-breathe 3s ease-in-out infinite;
+}
+@keyframes splash-glow-breathe {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.08); }
 }
 
-@keyframes trail-flow {
-  0% { transform: scaleX(0); opacity: 0; transform-origin: left; }
-  50% { opacity: 0.8; transform: scaleX(1.2); }
-  100% { transform: scaleX(1); opacity: 0.4; }
+/* Logo pulse on appear */
+.splash-logo-pulse {
+  animation: splash-logo-pulse 1s ease-out;
+}
+@keyframes splash-logo-pulse {
+  0%  { transform: scale(0.6); filter: brightness(3) blur(6px); }
+  60% { transform: scale(1.15); filter: brightness(1.2) blur(0); }
+  100%{ transform: scale(1.1); filter: brightness(1) blur(0); }
 }
 
-@keyframes cube-pop {
-  0% { opacity: 0; transform: scale(0) rotate(-20deg); }
-  70% { opacity: 1; transform: scale(1.1) rotate(5deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0); }
+/* Flash on reveal */
+.splash-flash {
+  animation: splash-flash 0.6s ease-out forwards;
+}
+@keyframes splash-flash {
+  0%   { opacity: 0.8; transform: scale(0.5); }
+  100% { opacity: 0;   transform: scale(3); }
 }
 
-@keyframes splash-parallax {
-  0%, 100% { transform: translate(-2%, -2%) scale(1.1); }
-  50% { transform: translate(2%, 2%) scale(1); }
+/* Progress bar shimmer */
+@keyframes splash-bar-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-@keyframes cinematic-dissolve {
-  0% { opacity: 1; filter: blur(0) contrast(1); transform: scale(1); }
-  100% { opacity: 0; filter: blur(50px) contrast(0.5); transform: scale(1.1); }
-}
-
-@keyframes pulse-border {
-  0%, 100% { border-color: rgba(var(--primary-rgb), 0.3); }
-  50% { border-color: rgba(var(--primary-rgb), 0.8); }
-}
-
-/* --- HIGH-END SPLASH ADDITIONS --- */
-
-@keyframes ring-expand {
-  0% { transform: scale(0.2); opacity: 0.9; }
-  100% { transform: scale(3.5); opacity: 0; }
-}
-
-@keyframes ring-expand-2 {
-  0% { transform: scale(0.3); opacity: 0.6; }
-  100% { transform: scale(2.8); opacity: 0; }
-}
-
-@keyframes particle-fly {
-  0% { transform: translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--px), var(--py)) scale(0); opacity: 0; }
-}
-
-@keyframes scan-sweep {
-  0% { top: -5%; opacity: 0; }
-  5% { opacity: 0.5; }
-  95% { opacity: 0.5; }
-  100% { top: 105%; opacity: 0; }
-}
-
-@keyframes glitch-slice-1 {
-  0%, 100% { clip-path: inset(0 0 100% 0); transform: translate(0); }
-  8% { clip-path: inset(8% 0 72% 0); transform: translate(-5px, 2px); }
-  12% { clip-path: inset(48% 0 32% 0); transform: translate(5px, -2px); }
-  16% { clip-path: inset(78% 0 8% 0); transform: translate(-3px, 1px); }
-  20% { clip-path: inset(0 0 100% 0); transform: translate(0); }
-}
-
-@keyframes glitch-slice-2 {
-  0%, 22%, 100% { clip-path: inset(0 0 100% 0); transform: translate(0); opacity: 0; }
-  25% { clip-path: inset(22% 0 58% 0); transform: translate(6px); opacity: 0.8; }
-  28% { clip-path: inset(58% 0 18% 0); transform: translate(-6px); opacity: 0.8; }
-  31% { clip-path: inset(38% 0 42% 0); transform: translate(4px, -4px); opacity: 0.8; }
-  34% { clip-path: inset(0 0 100% 0); transform: translate(0); opacity: 0; }
-}
-
-@keyframes energy-stream {
-  0% { stroke-dashoffset: 1000; opacity: 0; }
-  20% { opacity: 0.8; }
-  80% { opacity: 0.8; }
-  100% { stroke-dashoffset: 0; opacity: 0; }
-}
-
-@keyframes hex-pulse {
-  0%, 100% { opacity: 0.04; transform: scale(1); }
-  50% { opacity: 0.09; transform: scale(1.02); }
-}
-
-@keyframes logo-glow-pulse {
-  0%, 100% { filter: drop-shadow(0 0 20px hsl(var(--primary))) drop-shadow(0 0 40px hsl(var(--primary)/0.5)); }
-  50% { filter: drop-shadow(0 0 50px hsl(var(--primary))) drop-shadow(0 0 100px hsl(var(--primary)/0.7)); }
-}
-
-@keyframes text-reveal {
-  0% { opacity: 0; transform: translateY(24px) skewX(-6deg); filter: blur(10px); }
-  100% { opacity: 1; transform: translateY(0) skewX(0); filter: blur(0); }
-}
-
-@keyframes tagline-reveal {
-  0% { opacity: 0; letter-spacing: 0.8em; filter: blur(6px); }
-  100% { opacity: 1; letter-spacing: 0.5em; filter: blur(0); }
-}
-
-@keyframes corner-draw {
-  from { stroke-dashoffset: 120; }
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes data-stream {
-  0% { transform: translateY(-100%); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(100vh); opacity: 0; }
-}
-
-@keyframes badge-pop {
-  0% { opacity: 0; transform: scale(0) rotate(-10deg); }
-  70% { transform: scale(1.1) rotate(2deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0); }
-}
-
-.splash-orbit-ring {
-  border: 1.5px solid transparent;
-  animation: orbit-rotate 3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards,
-             orbit-pulse 4s ease-in-out infinite 3s;
-}
-
-.cube-cascade {
-  animation: cube-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.splash-logo-glow {
-  animation: logo-glow-pulse 3s ease-in-out infinite;
+/* Dashboard entry after splash */
+@keyframes dashboard-reveal {
+  0%   { opacity: 0; filter: blur(8px); transform: scale(1.02); }
+  100% { opacity: 1; filter: blur(0);   transform: scale(1); }
 }
 
 /* Weather Icon Animations */
@@ -574,18 +500,6 @@
 @keyframes pulse-slow {
   0%, 100% { opacity: 0.4; transform: scale(1); }
   50% { opacity: 0.7; transform: scale(1.1); }
-}
-
-.splash-orbit-ring-dup {
-  /* duplicate removed — see above */
-}
-
-.cube-cascade-dup {
-  /* duplicate removed — see above */
-}
-
-.pulse-border {
-  animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .animate-float {

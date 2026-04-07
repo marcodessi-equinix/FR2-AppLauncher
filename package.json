@@ -1,6 +1,6 @@
 {
-  "name": "fr2-applauncher-root",
-  "version": "1.6.0",
+  "name": "applauncher",
+  "version": "2.0.0",
   "private": true,
   "engines": {
     "node": ">=22 <25"

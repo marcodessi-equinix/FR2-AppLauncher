@@ -24,8 +24,9 @@ function AppContent() {
   const initClientIdentity = useStore((state) => state.initClientIdentity);
   const isAdmin = useStore((state) => state.isAdmin);
   const [showIntro, setShowIntro] = React.useState(() => {
-    return !localStorage.getItem('fr2_intro_seen');
+    return !localStorage.getItem('applauncher_intro_seen');
   });
+  const [cameFromSplash, setCameFromSplash] = React.useState(false);
 
   React.useEffect(() => {
     void initClientIdentity();
@@ -34,14 +35,14 @@ function AppContent() {
   React.useEffect(() => {
     const checkAuth = async () => {
       try {
-        const lastActivityMatch = localStorage.getItem('fr2_last_activity');
+        const lastActivityMatch = localStorage.getItem('app_last_activity');
         if (lastActivityMatch) {
             const lastActivity = parseInt(lastActivityMatch, 10);
             if (Date.now() - lastActivity > TIMEOUT_MS) {
                 // Session expired due to inactivity while away
                 await api.post('/auth/logout').catch(() => {});
                 setIsAdmin(false);
-                localStorage.removeItem('fr2_last_activity');
+                localStorage.removeItem('app_last_activity');
                 return;
             }
         }
@@ -51,7 +52,7 @@ function AppContent() {
         setIsAdmin(adminStatus);
         
         if (adminStatus) {
-            localStorage.setItem('fr2_last_activity', Date.now().toString());
+            localStorage.setItem('app_last_activity', Date.now().toString());
         }
       } catch {
         setIsAdmin(false);
@@ -64,12 +65,12 @@ function AppContent() {
   React.useEffect(() => {
     if (!isAdmin) return;
 
-    localStorage.setItem('fr2_last_activity', Date.now().toString());
+    localStorage.setItem('app_last_activity', Date.now().toString());
     let throttleTimeout: NodeJS.Timeout | null = null;
 
     const updateActivity = () => {
       if (!throttleTimeout) {
-        localStorage.setItem('fr2_last_activity', Date.now().toString());
+        localStorage.setItem('app_last_activity', Date.now().toString());
         throttleTimeout = setTimeout(() => {
           throttleTimeout = null;
         }, 5000); // 5 Seconds throttle to prevent excessive writes
@@ -77,13 +78,13 @@ function AppContent() {
     };
 
     const inactivityIntervalId = setInterval(() => {
-      const lastActivityStr = localStorage.getItem('fr2_last_activity');
+      const lastActivityStr = localStorage.getItem('app_last_activity');
       if (lastActivityStr) {
           const lastActivity = parseInt(lastActivityStr, 10);
           if (Date.now() - lastActivity > TIMEOUT_MS) {
             api.post('/auth/logout').catch(() => {});
             setIsAdmin(false);
-            localStorage.removeItem('fr2_last_activity');
+            localStorage.removeItem('app_last_activity');
           }
       }
     }, 10000); // Check every 10 seconds
@@ -94,7 +95,7 @@ function AppContent() {
          // If heartbeat fails with 403, our session was taken over
          if (err.response?.status === 403) {
             setIsAdmin(false);
-            localStorage.removeItem('fr2_last_activity');
+            localStorage.removeItem('app_last_activity');
          }
        });
     }, 10000); // Send heartbeat every 10 seconds
@@ -116,7 +117,8 @@ function AppContent() {
   }, [isAdmin, setIsAdmin]);
 
   const handleSplashComplete = () => {
-    localStorage.setItem('fr2_intro_seen', 'true');
+    localStorage.setItem('applauncher_intro_seen', 'true');
+    setCameFromSplash(true);
     setShowIntro(false);
   };
 
@@ -125,7 +127,7 @@ function AppContent() {
   }
 
   return (
-    <div className="animate-[dashboard-reveal_0.5s_ease-out_forwards]">
+    <div className={cameFromSplash ? 'animate-[dashboard-reveal_0.5s_ease-out_forwards]' : undefined}>
       <Layout>
         <DashboardGrid />
       </Layout>

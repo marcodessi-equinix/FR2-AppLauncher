@@ -4,14 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     volumes:
-      - fr2-applauncher-data:/app/data
-      - fr2-applauncher-uploads:/app/uploads
+      - applauncher-data:/app/data
+      - applauncher-uploads:/app/uploads
     environment:
       - NODE_ENV=production
       - PORT=3000
       - DATABASE_PATH=${DATABASE_PATH:-/app/data/applauncher.db}
-      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in Portainer or .env}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in Portainer or .env}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or your stack manager}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env or your stack manager}
       - FRONTEND_URL=${FRONTEND_URL:-}
       - COOKIE_SECURE=${COOKIE_SECURE:-auto}
       - ALLOW_INSECURE_DEFAULTS=false
@@ -22,7 +22,7 @@ services:
       retries: 8
       start_period: 30s
     networks:
-      - fr2-applauncher
+      - internal
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -40,7 +40,7 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - fr2-applauncher
+      - internal
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -48,14 +48,12 @@ services:
         max-size: "10m"
         max-file: "3"
     ports:
-      - "${FRONTEND_PORT:-9020}:80"
+      - "${APP_PORT:-9020}:80"
 
 networks:
-  fr2-applauncher:
+  internal:
     driver: bridge
 
 volumes:
-  fr2-applauncher-data:
-    name: fr2-applauncher-data
-  fr2-applauncher-uploads:
-    name: fr2-applauncher-uploads
+  applauncher-data:
+  applauncher-uploads:

@@ -1,338 +1,250 @@
 <p align="center">
-   <img src="frontend/public/FR2%20App%20Launcher%20full%20logo.png" alt="FR2 AppLauncher Logo" width="720" />
+  <img src="frontend/public/logo.png" alt="AppLauncher Logo" width="120" />
+</p>
+
+<h1 align="center">AppLauncher</h1>
+
+<p align="center">
+  A self-hosted dashboard for organizing internal links, tools, and services.<br/>
+  Deploy anywhere with Docker — no hardcoded URLs, no vendor lock-in.
 </p>
 
 <p align="center">
-   <strong>Ein modernes internes Dashboard für Firmen-VMs, Tools, Favoriten und Admin-Workflows.</strong>
-</p>
-
-<p align="center">
-   React, Vite, TypeScript, Express, SQLite, Nginx und Podman oder Portainer in einem fokussierten Stack.
-</p>
-
-<p align="center">
-   <img src="https://img.shields.io/badge/Frontend-React%2019-20232A?style=for-the-badge&logo=react" alt="React 19" />
-   <img src="https://img.shields.io/badge/Build-Vite%207-646CFF?style=for-the-badge&logo=vite" alt="Vite 7" />
-   <img src="https://img.shields.io/badge/Language-TypeScript%205.9-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript 5.9" />
-   <img src="https://img.shields.io/badge/Backend-Express-111111?style=for-the-badge&logo=express" alt="Express" />
-   <img src="https://img.shields.io/badge/Database-SQLite-003B57?style=for-the-badge&logo=sqlite" alt="SQLite" />
-   <img src="https://img.shields.io/badge/Runtime-Nginx-009639?style=for-the-badge&logo=nginx" alt="Nginx" />
-   <img src="https://img.shields.io/badge/Ops-Portainer%20%2B%20Podman-13BEF9?style=for-the-badge&logo=portainer" alt="Portainer and Podman" />
-</p>
-
-<p align="center">
-   <a href="#highlights">Highlights</a> •
-   <a href="#architektur">Architektur</a> •
-   <a href="#portainer-deployment-aus-github">Portainer Deploy</a> •
-   <a href="#lokale-installation-auf-der-vm">Lokale Installation</a> •
-   <a href="#betrieb-und-wartung">Betrieb</a>
+  <img src="https://img.shields.io/badge/Frontend-React%2019-20232A?style=for-the-badge&logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/Build-Vite%207-646CFF?style=for-the-badge&logo=vite" alt="Vite" />
+  <img src="https://img.shields.io/badge/Language-TypeScript-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Backend-Express-111111?style=for-the-badge&logo=express" alt="Express" />
+  <img src="https://img.shields.io/badge/Database-SQLite-003B57?style=for-the-badge&logo=sqlite" alt="SQLite" />
+  <img src="https://img.shields.io/badge/Server-Nginx-009639?style=for-the-badge&logo=nginx" alt="Nginx" />
+  <img src="https://img.shields.io/badge/Container-Docker%20%7C%20Podman-2496ED?style=for-the-badge&logo=docker" alt="Docker / Podman" />
 </p>
 
 ---
 
-## Überblick
+## Overview
 
-FR2 AppLauncher ist eine interne Dashboard-Anwendung für Firmen-VMs und Team-Links. Die App kombiniert einen visuellen Launcher mit Admin-Funktionen, Import- und Export-Workflows, Favoriten, Release-Hinweisen und einem Betriebsmodell, das bewusst einfach gehalten ist.
+AppLauncher is a lightweight, self-hosted web application for organizing and sharing internal links across a team. It runs as a Docker stack with zero external dependencies — just bring your own container runtime.
 
-Der Fokus ist nicht auf einem generischen Admin-Template, sondern auf einem eigenständigen, produktiven Tool:
+**Key features:**
 
-- Frontend öffentlich erreichbar über einen festen Host-Port oder Reverse Proxy
-- Backend nur intern im Compose-Netz sichtbar
-- persistente Datenhaltung für Datenbank und Uploads
-- Updates über GitHub und Portainer ohne Reset der App-Daten
-- lokale Installation per Shell-Skript für schnelle VM-Setups
+- Visual link dashboard with drag-and-drop group and link ordering
+- Admin panel with login, link management, icon uploads, and bookmark import/export
+- Per-user favorites via browser fingerprinting (no accounts needed for viewers)
+- System info widget with rich-text editor
+- Dark / light theme with language toggle (EN/DE)
+- Automatic build versioning from Git history
+- Persistent data via Docker volumes — survives container rebuilds
 
 ## Preview
 
 <p align="center">
-   <img src="frontend/public/FR2%20App%20Launcher%20full.png" alt="FR2 AppLauncher Preview" width="100%" />
+  <img src="frontend/public/preview.png" alt="AppLauncher Preview" width="100%" />
 </p>
 
-## Highlights
+## Quick Start
 
-- Zentrale Link- und Gruppenverwaltung für interne Anwendungen, Tools und Umgebungen
-- Drag-and-drop für Gruppen und Links direkt im Dashboard
-- Favoritenbereich für schnellen Zugriff auf häufig genutzte Ziele
-- Admin-Modus mit Edit-Workflow, Login, Import, Icon-Verwaltung und Release-Hinweisen
-- Bookmark-Import und Export für schnelleren Datenumzug
-- Upload eigener Icons inklusive Verwaltung und Löschfunktion
-- Release-Hinweis-Dialog mit manueller Historie und automatischer Build-Version
-- Podman- und Portainer-freundliches Deployment-Modell für einfache Updates
+### Prerequisites
 
-## Tech Stack
+- [Docker](https://docs.docker.com/engine/install/) with Compose **or** [Podman](https://podman.io/docs/installation) with podman-compose
 
-| Bereich | Technologie |
-| --- | --- |
-| Frontend | React 19, Vite 7, TypeScript, Zustand, React Query |
-| UI | Tailwind, Radix UI, Lucide, dnd-kit |
-| Backend | Node.js 22, Express, TypeScript |
-| Daten | SQLite |
-| Auslieferung | Nginx |
-| Betrieb | Podman, Portainer, Compose |
-
-## Architektur
-
-```mermaid
-flowchart LR
-      User[Benutzer im Browser]
-      Proxy[Optionaler Reverse Proxy]
-      Frontend[FR2 Frontend\nReact + Vite Build\nNginx Runtime]
-      Backend[FR2 Backend\nNode + Express]
-      DB[(SQLite)]
-      Uploads[(Uploads / Icons)]
-      GitHub[GitHub Repository]
-      Portainer[Portainer Stack Update]
-
-      User --> Proxy
-      Proxy --> Frontend
-      User --> Frontend
-      Frontend --> Backend
-      Backend --> DB
-      Backend --> Uploads
-      GitHub --> Portainer
-      Portainer --> Frontend
-      Portainer --> Backend
-```
-
-## Standard-Betriebsmodell
-
-- Frontend-Port standardmäßig `9020`
-- Backend-Port nur intern im Compose-Netz `3000`
-- kein öffentliches Backend-Port-Mapping
-- HTTP im internen Netz, kein HTTPS-Zwang im Standardbetrieb
-- Frontend zusätzlich im externen Proxy-Netz `nginx-proxy-manager_default`
-- persistente Volumes für Datenbank und Uploads
-- Frontend startet unabhängig vom Backend, damit Webzugriff nicht vom Healthcheck blockiert wird
-
-## Portainer Deployment aus GitHub
-
-Ja, der Stack kann direkt aus dem GitHub-Repository in Portainer deployed werden.
-
-Für einen absichtlich sicheren Start müssen in Portainer mindestens diese Variablen gesetzt sein:
-
-- `JWT_SECRET`
-- `ADMIN_PASSWORD`
-
-Ohne diese beiden Werte startet der Stack nicht.
-
-### Empfohlene Portainer-Konfiguration
-
-1. In Portainer `Stacks` öffnen.
-2. `Add stack` auswählen.
-3. `Repository` oder `Git Repository` als Deployment-Typ wählen.
-4. Repository-URL eintragen.
-5. Als Compose-Datei `docker-compose.yml` verwenden.
-6. Unter `Environment variables` mindestens diese Werte setzen:
-    - `JWT_SECRET`
-    - `ADMIN_PASSWORD`
-7. Stack deployen.
-
-### Optionale Environment-Variablen
-
-| Variable | Zweck | Standard |
-| --- | --- | --- |
-| `FRONTEND_PORT` | Host-Port für das Frontend | `9020` |
-| `DATABASE_PATH` | SQLite-Datei im Container | `/app/data/applauncher.db` |
-| `PROXY_NETWORK` | Externes Netzwerk für Nginx Proxy Manager | `nginx-proxy-manager_default` |
-| `FRONTEND_URL` | zusätzliche erlaubte Origins, kommagetrennt | leer |
-| `COOKIE_SECURE` | Cookie-Sicherheit: `auto`, `true` oder `false` | `auto` |
-
-Bei Portainer-Deployments aus einem Git-Repository ist das `.git`-Verzeichnis im Build-Kontext oft nicht vorhanden. In diesem Fall baut das Frontend trotzdem erfolgreich, und der sichtbare Build-Stand wird automatisch aus dem Frontend-Inhalt berechnet. Sobald sich der relevante Frontend-Stand ändert, ändert sich damit auch die sichtbare Build-Version unten in der App.
-
-Für den normalen Betrieb hinter Nginx Proxy Manager sollte `COOKIE_SECURE=auto` verwendet werden. Dann erkennt das Backend selbst, ob der Request über HTTPS kommt, und setzt die Session-Cookies passend. Ein festes `COOKIE_SECURE=true` zusammen mit einer `http://...`-URL ist eine widersprüchliche Konfiguration.
-
-### Hinweise zum Proxy-Betrieb
-
-- `FRONTEND_URL` ist für den Standardbetrieb über denselben Host meist nicht nötig.
-- Die App akzeptiert denselben Origin hinter dem Proxy automatisch.
-- Für Nginx Proxy Manager gibt es jetzt beide Wege: entweder Proxy-Ziel auf `VM-HOSTNAME:9020` oder gemeinsames Netzwerk über `PROXY_NETWORK`.
-- Der direkte Zugriff über `http://VM-HOSTNAME:9020` muss auch dann funktionieren, wenn das Backend gerade noch startet.
-
-## Zugriff
-
-Nach dem Deploy ist die App standardmäßig hier erreichbar:
-
-- `http://VM-HOSTNAME:9020`
-
-Der Admin-Login erfolgt über das Schloss-Symbol im Dashboard.
-
-## Updates über Portainer
-
-Im Regelfall reichen für Updates diese Schritte:
-
-1. Änderungen nach GitHub pushen.
-2. Den bestehenden Stack in Portainer öffnen.
-3. `Update` oder `Pull and redeploy` ausführen.
-
-Die App-Daten bleiben erhalten, solange der bestehende Stack weiterverwendet wird, weil Datenbank und Uploads persistent gemountet sind.
-
-## Lokale Installation auf der VM
-
-Wenn du die App direkt auf einer VM ohne Portainer deployen willst:
+### Option A: Interactive Install Script
 
 ```bash
-git clone <repo-url>
-cd FR2-AppLauncher
+git clone https://github.com/YOUR_USERNAME/AppLauncher.git
+cd AppLauncher
 bash install.sh
 ```
 
-Das Installationsskript erledigt automatisch:
+The script auto-detects Docker or Podman, generates a secure `.env`, builds the containers, and prints the access URL.
 
-- Prüfung auf `podman` und `podman-compose` oder `podman compose`
-- Erstellung einer lokalen `.env`
-- Generierung eines sicheren `JWT_SECRET`
-- Abfrage oder Generierung eines Admin-Passworts
-- Anlage von `data/` und `uploads/icons/`
-- Prüfung und Erstellung des Proxy-Netzwerks
-- Build und Start des Stacks
+### Option B: Manual Setup
 
-## Lokale Entwicklung
+```bash
+git clone https://github.com/YOUR_USERNAME/AppLauncher.git
+cd AppLauncher
+cp .env.example .env
+```
 
-Empfohlen ist Node.js 22 LTS. Die App verwendet den eingebauten SQLite-Treiber aus Node und ist auf eine aktuelle LTS-Version ausgelegt.
+Edit `.env` — set at least:
 
-Im Projektstamm:
+```env
+JWT_SECRET=<random-64-char-hex-string>
+ADMIN_PASSWORD=<your-strong-password>
+```
+
+Then start the stack:
+
+```bash
+docker compose up -d --build
+```
+
+The app will be available at **http://localhost:9020** (or whatever you set `APP_PORT` to).
+
+### Option C: Portainer / Stack Manager
+
+1. Create a new stack from this Git repository.
+2. Set the compose file to `docker-compose.yml`.
+3. Add environment variables: `JWT_SECRET` and `ADMIN_PASSWORD`.
+4. Deploy.
+
+## Configuration
+
+All configuration is done via environment variables. Copy `.env.example` to `.env` and adjust as needed.
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `JWT_SECRET` | **Required.** Secret for signing auth tokens (min 32 chars). | — |
+| `ADMIN_PASSWORD` | **Required.** Admin login password (plaintext or bcrypt hash). | — |
+| `APP_PORT` | Host port the app listens on. | `9020` |
+| `COOKIE_SECURE` | Cookie security: `auto`, `true`, or `false`. | `auto` |
+| `FRONTEND_URL` | Extra allowed CORS origins (comma-separated). Usually empty. | — |
+| `DATABASE_PATH` | SQLite file path inside the container. | `/app/data/applauncher.db` |
+
+> **Note:** `COOKIE_SECURE=auto` detects HTTPS via `X-Forwarded-Proto`. If your reverse proxy does not forward this header, set `COOKIE_SECURE=true` explicitly when using HTTPS.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    User[Browser]
+    Proxy["Reverse Proxy (optional)"]
+    Frontend[Frontend Container\nNginx + React SPA]
+    Backend[Backend Container\nNode.js + Express]
+    DB[(SQLite)]
+    Uploads[(Uploads)]
+
+    User --> Proxy --> Frontend
+    User --> Frontend
+    Frontend -- "/api/*" --> Backend
+    Backend --> DB
+    Backend --> Uploads
+```
+
+- **Frontend** serves the React SPA via Nginx and reverse-proxies `/api/` and `/uploads/` to the backend.
+- **Backend** is only reachable inside the Docker network — never exposed to the host.
+- **Data** is stored in named Docker volumes, persisting across rebuilds.
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19, Vite 7, TypeScript, Zustand, React Query |
+| UI | Tailwind CSS, Radix UI, Lucide Icons, dnd-kit |
+| Backend | Node.js 22, Express 5, TypeScript, Zod |
+| Database | SQLite (via built-in `node:sqlite`) |
+| Web Server | Nginx (Alpine) |
+| Containers | Docker Compose / Podman Compose |
+
+## Operations
+
+### Update
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+App data is preserved — only the code is rebuilt.
+
+### Stop
+
+```bash
+docker compose down
+```
+
+### Logs
+
+```bash
+docker compose logs -f
+```
+
+### Backup
+
+```bash
+./backup.sh
+```
+
+Creates a timestamped `.tar.gz` of the database and uploaded icons.
+
+### Restore
+
+```bash
+./restore.sh backups/applauncher_backup_20260407_120000.tar.gz
+```
+
+Stops the stack, restores data, then you restart manually.
+
+## Local Development
+
+Requires **Node.js 22+**.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Das Root-Projekt verwendet npm Workspaces und installiert damit Root-, Backend- und Frontend-Abhängigkeiten.
+This starts the backend (with hot-reload) and the Vite dev server concurrently. Default dev credentials:
 
-`npm run dev` startet:
+- Admin password: `1234`
+- JWT secret: auto-generated dev default
 
-- das Backend im Watch-Modus
-- das Frontend mit Vite
-
-Für die lokale Entwicklung werden automatisch diese Defaults gesetzt:
-
-- `JWT_SECRET=CHANGE_ME_DEV_SECRET`
-- `ADMIN_PASSWORD=1234`
-- `ALLOW_INSECURE_DEFAULTS=true`
-
-Für produktive Deployments brauchst du weiterhin echte, eigene Werte.
-
-### Nützliche Root-Befehle
+### Useful Commands
 
 ```bash
-npm run build
-npm run test
-npm run lint
+npm run build        # Build both frontend and backend
+npm run test         # Run backend tests
+npm run lint         # Lint frontend
 ```
 
-## Empfohlene `.env`
+## Project Structure
 
-Für den Standardbetrieb auf einer VM ohne Sonderfälle brauchst du genau diese Werte:
-
-```env
-PORT=3000
-FRONTEND_PORT=9020
-DATABASE_PATH=/app/data/applauncher.db
-PROXY_NETWORK=nginx-proxy-manager_default
-FRONTEND_URL=
-COOKIE_SECURE=false
-ALLOW_INSECURE_DEFAULTS=false
-JWT_SECRET=9d8f0e6a1c2b3d4e5f60718293a4b5c6d7e8f90123456789abcdef012345678
-ADMIN_PASSWORD=ChangeThisToYourOwnStrongPassword
+```
+├── backend/              # Express API, SQLite, auth, routes
+│   └── src/
+│       ├── app.ts        # Server entry point
+│       ├── db/           # Database init & migrations
+│       ├── routes/       # API route handlers
+│       ├── controllers/  # Request handlers
+│       ├── services/     # Business logic
+│       └── middleware/    # Auth middleware
+├── frontend/             # React SPA
+│   ├── nginx.conf        # Production nginx config
+│   └── src/
+│       ├── components/   # UI components
+│       ├── lib/          # API client, utilities
+│       ├── store/        # Zustand state
+│       └── types/        # TypeScript types
+├── docker/               # Container entrypoints
+├── nginx/                # Reference nginx config for host-level proxy
+├── docker-compose.yml    # Stack definition
+├── Dockerfile.backend    # Backend multi-stage build
+├── Dockerfile.frontend   # Frontend build + Nginx runtime
+├── install.sh            # Interactive setup script
+├── backup.sh             # Data backup script
+├── restore.sh            # Data restore script
+└── .env.example          # Configuration template
 ```
 
-Wichtig:
+## Reverse Proxy
 
-- `JWT_SECRET` darf nicht leer sein und sollte mindestens 32 Zeichen lang sein.
-- `ADMIN_PASSWORD` darf nicht leer sein. Klartext ist erlaubt, ein bcrypt-Hash ebenfalls.
-- Der sichtbare Build-Stand wird automatisch aus dem Git-Verlauf der aktuellen Release-Reihe erzeugt, also z. B. `1.6.001`, `1.6.002`, `1.6.003`.
-- Der sichtbare Build-Stand unten in der App wird automatisch aus Git oder, falls Git im Build-Kontext fehlt, aus dem gebauten Frontend-Inhalt abgeleitet.
-- Für denselben Host hinter dem Reverse Proxy kann `FRONTEND_URL` leer bleiben. Falls du es setzt, dann ohne Pfad und passend zum echten externen Protokoll, also z. B. `https://fr2-applauncher.equinix.com`.
-- `FRONTEND_URL` im Standardfall leer lassen. Nur setzen, wenn du bewusst zusätzliche Origins erlauben willst.
-- `COOKIE_SECURE=false` ist für direkten HTTP-Zugriff gedacht. Hinter einem HTTPS-Reverse-Proxy kann die App HTTPS normalerweise automatisch erkennen; falls dein Proxy `X-Forwarded-Proto` nicht korrekt weiterreicht, setze `COOKIE_SECURE=true` explizit.
+If you run AppLauncher behind a reverse proxy (Nginx Proxy Manager, Traefik, Caddy, etc.):
 
-Wenn du `install.sh` verwendest, gilt zusätzlich:
+1. Point the proxy to `http://<host>:<APP_PORT>` (default `9020`).
+2. Ensure the proxy forwards `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For`.
+3. Set `COOKIE_SECURE=auto` (default) — the app will detect HTTPS automatically.
 
-- Existiert bereits eine `.env`, dann wird sie wiederverwendet.
-- Eine vorhandene `.env` mit leerem `JWT_SECRET` oder leerem `ADMIN_PASSWORD` blockiert die Installation.
-- Wenn du neu starten willst, lösche die bestehende `.env` vor `bash install.sh`.
+A reference host-level nginx config is provided in `nginx/nginx.conf`.
 
-`ADMIN_PASSWORD` kann als Klartext gesetzt werden. Ein vorhandener bcrypt-Hash wird ebenfalls unterstützt.
+## Security
 
-## Betrieb und Wartung
+- Admin sessions use JWT tokens stored in HTTP-only cookies.
+- Rate limiting on login attempts (10 per 15 minutes per IP).
+- Exclusive admin session lock — only one admin can be active at a time.
+- HTML input is sanitized server-side via `sanitize-html`.
+- File uploads are restricted to image types with size limits.
+- The backend is never exposed outside the Docker network.
+- The app refuses to start with weak credentials in production mode.
 
-### Stack starten oder aktualisieren
+## License
 
-```bash
-podman compose up -d --build
-```
-
-### Stack stoppen
-
-```bash
-podman compose down
-```
-
-### Logs ansehen
-
-```bash
-podman compose logs -f
-```
-
-### Backup erstellen
-
-```bash
-./backup.sh
-```
-
-### Backup wiederherstellen
-
-```bash
-./restore.sh <path_to_backup.tar.gz>
-```
-
-Das Restore-Skript stoppt vorher den Stack und überschreibt die bestehenden `data/`- und `uploads/`-Verzeichnisse.
-
-## Projektstruktur
-
-```text
-.
-├── backend/                 # Express API, DB, Auth, Uploads, Routen
-├── frontend/                # React App, Dashboard, Admin UI, Assets
-├── docker/                  # Entrypoints für Frontend und Backend
-├── nginx/                   # Nginx-Konfiguration
-├── uploads/                 # persistente Uploads außerhalb des Containers
-├── install.sh               # VM-Installationsskript
-├── backup.sh                # Backup von Daten und Uploads
-├── restore.sh               # Restore aus Backup-Archiv
-├── docker-compose.yml       # Stack-Definition
-├── Dockerfile.frontend      # Frontend-Build und Nginx-Runtime
-└── Dockerfile.backend       # Backend-Container
-```
-
-## Release- und Versionslogik
-
-- die Hauptversion wird bewusst manuell gepflegt
-- größere inhaltliche Releases landen in der Versionshistorie
-- die sichtbare Build-Version kann bei Builds automatisch weiterlaufen
-- Release-Hinweise bleiben absichtlich kontrolliert und nicht blind aus Commit-Messages generiert
-
-## Wichtige Hinweise
-
-- Keine echten Secrets ins Repository committen.
-- `JWT_SECRET` und `ADMIN_PASSWORD` immer pro Umgebung separat setzen.
-- Das Backend ist absichtlich nicht direkt von außen erreichbar.
-- `COOKIE_SECURE=true` erst aktivieren, wenn die App tatsächlich über HTTPS ausgeliefert wird.
-- Für Reverse-Proxy-Setups muss das Frontend im passenden externen Netzwerk hängen.
-
-## Warum dieses Repo nicht wie ein Standard-Template wirkt
-
-Die App ist nicht als beliebiges CRUD-Panel gedacht, sondern als internes Produkt mit eigener visueller Sprache. Header, Dock, Favoriten, Admin-Modus, Icon-Management und Release-Dialog sind gezielt auf einen täglichen internen Einsatz ausgelegt.
-
-Wenn du das Repo jemandem zeigst, soll es nicht wie ein schnell zusammengeklebtes Vite-Gerüst wirken, sondern wie ein bewusst gebautes, betreibbares Produkt.
-
----
-
-<p align="center">
-   <img src="frontend/public/FR2%20App%20Launcher%20logo.png" alt="FR2 AppLauncher Mark" width="72" />
-</p>
-
-<p align="center">
-   <strong>FR2 AppLauncher</strong><br/>
-   Interne Dashboards sauber deployen, einfach aktualisieren und produktiv betreiben.
-</p>
+[MIT](LICENSE)

@@ -125,9 +125,4 @@ export async function runMigrations() {
     }
 }
 
-export function initDb() {
-    // This is now legacy/wrapper for compatibility or simple checks
-    // The actual schema is handled by runMigrations
-}
-
 export default db;

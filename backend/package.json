@@ -1,5 +1,5 @@
 {
-  "name": "fr2-applauncher-backend",
+  "name": "applauncher-backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {

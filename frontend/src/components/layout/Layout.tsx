@@ -23,7 +23,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
       
       <footer className="relative z-10 py-6 text-center text-[9px] text-muted-foreground/25 font-medium tracking-[0.24em] uppercase">
-        <p>&copy; {new Date().getFullYear()} FR2 AppLauncher · Enterprise Application Access Platform</p>
+        <p>&copy; {new Date().getFullYear()} AppLauncher</p>
       </footer>
 
       <Dock />

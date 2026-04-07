@@ -52,13 +52,4 @@ router.post('/execute-import', requireAdmin, (req, res) => {
     }
 });
 
-// Compatibility Route (if needed, but frontend will switch)
-router.post('/import-bookmarks', requireAdmin, upload.single('file'), (req, res) => {
-     // ... legacy direct import logic ...
-     // We can redirect to parse+save logic or keep as simple fallback?
-     // Let's deprecate it or keep it for the CLI script equivalent.
-     // For now, removing to force new workflow in UI.
-     res.status(410).json({ error: 'Endpoint deprecated. Use /parse-bookmarks and /execute-import flow.' });
-});
-
 export default router;

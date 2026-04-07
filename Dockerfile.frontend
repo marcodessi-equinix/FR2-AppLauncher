@@ -10,7 +10,7 @@ RUN npm install --legacy-peer-deps
 COPY frontend/ ./
 RUN npm run build
 
-# Runtime stage - static file server
+# Runtime stage
 FROM docker.io/library/nginx:alpine AS runtime
 
 COPY --from=builder /app/dist /usr/share/nginx/html

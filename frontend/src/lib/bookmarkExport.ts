@@ -37,7 +37,7 @@ export const buildBookmarksHtml = (groups: Group[]): string => {
     '<TITLE>Bookmarks</TITLE>',
     '<H1>Bookmarks</H1>',
     '<DL><p>',
-    `  <DT><H3 ADD_DATE="${timestamp}" LAST_MODIFIED="${timestamp}">FR2 AppLauncher</H3>`,
+    `  <DT><H3 ADD_DATE="${timestamp}" LAST_MODIFIED="${timestamp}">AppLauncher</H3>`,
     '  <DL><p>',
   ];
 
@@ -47,7 +47,7 @@ export const buildBookmarksHtml = (groups: Group[]): string => {
       continue;
     }
 
-    const groupTitle = escapeHtml(group.title?.trim() || 'Ohne Titel');
+    const groupTitle = escapeHtml(group.title?.trim() || 'Untitled');
     lines.push(`    <DT><H3 ADD_DATE="${timestamp}" LAST_MODIFIED="${timestamp}">${groupTitle}</H3>`);
     lines.push('    <DL><p>');
 
@@ -68,7 +68,7 @@ export const downloadBookmarksFile = (groups: Group[]): void => {
   const orderedGroups = [...groups].sort((left, right) => left.order - right.order);
   const html = buildBookmarksHtml(orderedGroups);
   const datePart = new Date().toISOString().slice(0, 10);
-  const fileName = `fr2-applauncher-bookmarks-${datePart}.html`;
+  const fileName = `applauncher-bookmarks-${datePart}.html`;
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

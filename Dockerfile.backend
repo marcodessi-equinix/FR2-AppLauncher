@@ -3,14 +3,11 @@ FROM docker.io/library/node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install build tools required by some npm packages during install
 RUN apk add --no-cache python3 make g++
 
-# Copy package files from backend directory
 COPY backend/package*.json ./
 RUN npm install
 
-# Copy source and build
 COPY backend/ .
 RUN npm run build
 
@@ -19,16 +16,13 @@ FROM docker.io/library/node:22-alpine
 
 WORKDIR /app
 
-# Install only production dependencies + git for version reporting
 COPY backend/package*.json ./
-RUN apk add --no-cache python3 make g++ git su-exec && \
+RUN apk add --no-cache python3 make g++ su-exec && \
     npm install --only=production && \
     apk del python3 make g++
 
-# Copy build output from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Create data and uploads directories with correct permissions
 RUN mkdir -p /app/data /app/uploads/icons && \
     chown -R node:node /app/data /app/uploads && \
     chmod -R 755 /app/data /app/uploads

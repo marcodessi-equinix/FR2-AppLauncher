@@ -158,7 +158,7 @@ export const startServer = async () => {
 
     const app = createApp();
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`FR2 AppLauncher backend listening on 0.0.0.0:${PORT}`);
+      console.log(`AppLauncher backend listening on 0.0.0.0:${PORT}`);
     });
   } catch (error) {
     console.error("Critical failure during startup (Migrations):", error);

@@ -3,7 +3,7 @@ import { useStore, Theme } from '../store/useStore';
 
 export const ThemeManager: React.FC = () => {
   React.useEffect(() => {
-    const storageKey = 'fr2-applauncher-storage';
+    const storageKey = 'applauncher-storage';
     const root = document.documentElement;
     let transitionTimeout: number | null = null;
 

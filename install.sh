@@ -1,4 +1,6 @@
 #!/bin/bash
+# AppLauncher – interactive installation script.
+# Works with Docker Compose or Podman Compose.
 
 set -euo pipefail
 
@@ -7,15 +9,15 @@ RESET=$(tput sgr0 2>/dev/null || echo "")
 GREEN=$(tput setaf 2 2>/dev/null || echo "")
 RED=$(tput setaf 1 2>/dev/null || echo "")
 YELLOW=$(tput setaf 3 2>/dev/null || echo "")
-DEFAULT_PROXY_NETWORK="nginx-proxy-manager_default"
+
+# ---------- helpers ----------
 
 require_env_value() {
     local key="$1"
     local value
     value=$(grep -E "^${key}=" .env 2>/dev/null | head -n1 | cut -d= -f2- || true)
-
     if [ -z "$value" ]; then
-        echo "${RED}FEHLER: '${key}' fehlt in .env oder ist leer.${RESET}"
+        echo "${RED}ERROR: '${key}' is missing or empty in .env.${RESET}"
         exit 1
     fi
 }
@@ -36,103 +38,86 @@ generate_password() {
     fi
 }
 
+detect_compose() {
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD="docker compose"
+        echo "${GREEN}✓ Found: docker compose $(docker compose version --short 2>/dev/null)${RESET}"
+        return
+    fi
+    if command -v podman >/dev/null 2>&1; then
+        if command -v podman-compose >/dev/null 2>&1; then
+            COMPOSE_CMD="podman-compose"
+            echo "${GREEN}✓ Found: podman-compose${RESET}"
+            return
+        fi
+        if podman compose version >/dev/null 2>&1; then
+            COMPOSE_CMD="podman compose"
+            echo "${GREEN}✓ Found: podman compose${RESET}"
+            return
+        fi
+    fi
+    echo "${RED}ERROR: Neither 'docker compose' nor 'podman-compose' found.${RESET}"
+    echo "  Install Docker: https://docs.docker.com/engine/install/"
+    echo "  Install Podman: https://podman.io/docs/installation"
+    exit 1
+}
+
+# ---------- main ----------
+
 echo ""
 echo "${BOLD}======================================================"
-echo "  FR2 AppLauncher - Installations-Skript"
+echo "  AppLauncher – Installation"
 echo "======================================================${RESET}"
 echo ""
 
-echo "${BOLD}[1/4] Voraussetzungen pruefen...${RESET}"
-if ! command -v podman >/dev/null 2>&1; then
-    echo "${RED}FEHLER: 'podman' wurde nicht gefunden.${RESET}"
-    echo "  Installation: https://podman.io/docs/installation"
-    exit 1
-fi
-
-if ! command -v podman-compose >/dev/null 2>&1 && ! podman compose version >/dev/null 2>&1; then
-    echo "${RED}FEHLER: 'podman-compose' oder 'podman compose' wurde nicht gefunden.${RESET}"
-    exit 1
-fi
-echo "${GREEN}✓ Podman gefunden: $(podman --version)${RESET}"
+echo "${BOLD}[1/3] Checking prerequisites...${RESET}"
+detect_compose
 
 echo ""
-echo "${BOLD}[2/4] .env-Datei einrichten...${RESET}"
+echo "${BOLD}[2/3] Setting up .env file...${RESET}"
 if [ -f ".env" ]; then
-    echo "${YELLOW}ℹ  .env existiert bereits und wird weiterverwendet.${RESET}"
+    echo "${YELLOW}ℹ  .env already exists – reusing it.${RESET}"
     require_env_value "JWT_SECRET"
     require_env_value "ADMIN_PASSWORD"
 else
-    read -r -p "  Frontend-Port [9020]: " FRONTEND_PORT
-    FRONTEND_PORT="${FRONTEND_PORT:-9020}"
+    read -r -p "  Application port [9020]: " APP_PORT
+    APP_PORT="${APP_PORT:-9020}"
 
-    read -r -p "  Proxy-Netzwerk [${DEFAULT_PROXY_NETWORK}]: " PROXY_NETWORK
-    PROXY_NETWORK="${PROXY_NETWORK:-$DEFAULT_PROXY_NETWORK}"
-
-    read -r -p "  Admin-Passwort festlegen (Enter fuer zufaelliges Passwort): " ADMIN_PASS
+    read -r -p "  Admin password (Enter for random): " ADMIN_PASS
     if [ -z "$ADMIN_PASS" ]; then
         ADMIN_PASS=$(generate_password)
-        echo "  Generiertes Admin-Passwort: ${ADMIN_PASS}"
+        echo "  Generated admin password: ${ADMIN_PASS}"
     fi
 
     JWT_SECRET=$(generate_secret)
-    HOST_NAME=$(hostname 2>/dev/null || echo "localhost")
 
     cat > .env <<EOF
-PORT=3000
-FRONTEND_PORT=${FRONTEND_PORT}
-DATABASE_PATH=/app/data/applauncher.db
-FRONTEND_URL=
-COOKIE_SECURE=false
-ALLOW_INSECURE_DEFAULTS=false
-PROXY_NETWORK=${PROXY_NETWORK}
 JWT_SECRET=${JWT_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASS}
+APP_PORT=${APP_PORT}
+COOKIE_SECURE=auto
+FRONTEND_URL=
+DATABASE_PATH=/app/data/applauncher.db
 EOF
 
-    echo "${GREEN}✓ .env wurde erstellt.${RESET}"
-    echo "${GREEN}  Frontend wird auf http://${HOST_NAME}:${FRONTEND_PORT} erreichbar sein.${RESET}"
+    echo "${GREEN}✓ .env created.${RESET}"
 fi
 
 echo ""
-echo "${BOLD}[3/4] Datenverzeichnisse vorbereiten...${RESET}"
-mkdir -p data uploads/icons
-touch uploads/icons/.gitkeep
-echo "${GREEN}✓ Verzeichnisse 'data/' und 'uploads/icons/' bereit${RESET}"
-
-PROXY_NETWORK=$(grep '^PROXY_NETWORK=' .env | cut -d= -f2)
-PROXY_NETWORK="${PROXY_NETWORK:-$DEFAULT_PROXY_NETWORK}"
-
-echo ""
-echo "${BOLD}[3a/4] Proxy-Netzwerk pruefen...${RESET}"
-if podman network exists "$PROXY_NETWORK" >/dev/null 2>&1; then
-    echo "${GREEN}✓ Netzwerk '$PROXY_NETWORK' gefunden${RESET}"
-else
-    echo "${YELLOW}ℹ  Netzwerk '$PROXY_NETWORK' existiert noch nicht und wird erstellt...${RESET}"
-    podman network create "$PROXY_NETWORK" >/dev/null
-    echo "${GREEN}✓ Netzwerk '$PROXY_NETWORK' erstellt${RESET}"
-fi
-
-echo ""
-echo "${BOLD}[4/4] Container bauen und starten...${RESET}"
-if command -v podman-compose >/dev/null 2>&1; then
-    podman-compose up -d --build
-else
-    podman compose up -d --build
-fi
+echo "${BOLD}[3/3] Building and starting containers...${RESET}"
+$COMPOSE_CMD up -d --build
 
 HOST_NAME=$(hostname 2>/dev/null || echo "localhost")
-FRONTEND_PORT=$(grep '^FRONTEND_PORT=' .env | cut -d= -f2)
+APP_PORT=$(grep '^APP_PORT=' .env 2>/dev/null | cut -d= -f2 || echo "9020")
 
 echo ""
 echo "${GREEN}${BOLD}======================================================"
-echo "  Installation abgeschlossen"
+echo "  Installation complete!"
 echo "======================================================${RESET}"
 echo ""
-echo "  Frontend: http://${HOST_NAME}:${FRONTEND_PORT:-9020}"
-echo "  Backend:  nur intern im Compose-Netz"
-echo "  Proxy-Netz: ${PROXY_NETWORK}"
+echo "  App:     http://${HOST_NAME}:${APP_PORT:-9020}"
 echo ""
-echo "  Update:   podman compose up -d --build"
-echo "  Stoppen:  podman compose down"
-echo "  Logs:     podman compose logs -f"
+echo "  Update:  $COMPOSE_CMD up -d --build"
+echo "  Stop:    $COMPOSE_CMD down"
+echo "  Logs:    $COMPOSE_CMD logs -f"
 echo ""

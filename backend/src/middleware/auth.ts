@@ -31,7 +31,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction) =>
     }
 
     if (payload.sessionId && adminSessionService.isLockedFor(payload.sessionId)) {
-      return res.status(403).json({ error: 'Ihre Admin-Sitzung wurde beendet, da sich ein anderer Administrator (oder Sie in einem anderen Tab) angemeldet hat.' });
+      return res.status(403).json({ error: 'Your admin session was terminated because another administrator signed in.' });
     }
 
     req.user = payload;

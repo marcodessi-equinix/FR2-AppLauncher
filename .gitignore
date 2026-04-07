@@ -1,20 +1,37 @@
+# Environment
 .env
 .env.local
+.env.*.local
 
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 build/
-
-backend/node_modules/
 backend/dist/
-backend/.dev-data/
-frontend/node_modules/
 frontend/dist/
 
+# Dev data
+backend/.dev-data/
+.dev-data/
+
+# Runtime data (managed via Docker volumes)
 data/*.db
 backend/data/*.db
-backend/database.sqlite
 uploads/icons/*
 !uploads/icons/.gitkeep
 
+# Logs
 *.log
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Backups (local only)
+backups/

@@ -1,5 +1,5 @@
 #!/bin/bash
-# FR2 AppLauncher Restore Script
+# AppLauncher Restore Script
 # Usage: ./restore.sh <path_to_backup.tar.gz>
 
 if [ "$#" -ne 1 ]; then
@@ -25,14 +25,12 @@ then
 fi
 
 echo "Stopping containers..."
-podman compose down 2>/dev/null || docker compose down 2>/dev/null
+docker compose down 2>/dev/null || podman compose down 2>/dev/null || podman-compose down 2>/dev/null || true
 
 echo "Restoring from $BACKUP_FILE..."
-# Extract the archive. Using -C to ensure it extracts into the current directory
-# Assuming the archive was created with ./data and ./uploads at the root
 if tar -xzf "$BACKUP_FILE" -C "$TARGET_DIR"; then
     echo "Restore completed successfully!"
-    echo "You can now start the application with: podman compose up -d"
+    echo "You can now start the application with: docker compose up -d"
 else
     echo "Error: Restore failed."
     exit 1

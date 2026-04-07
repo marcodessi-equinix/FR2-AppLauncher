@@ -54,13 +54,13 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
               setContent({ de: res.data.content, en: '' });
             }
           } catch {
-            setContent({ de: res.data.content, en: 'Welcome to FR2 AppLauncher.' });
+            setContent({ de: res.data.content, en: 'Welcome to AppLauncher.' });
           }
         } else {
-          setContent({ de: 'Willkommen im FR2 AppLauncher.', en: 'Welcome to FR2 AppLauncher.' });
+          setContent({ de: 'Willkommen im AppLauncher.', en: 'Welcome to AppLauncher.' });
         }
       } catch {
-        setContent({ de: 'Willkommen im FR2 AppLauncher.', en: 'Welcome to FR2 AppLauncher.' });
+        setContent({ de: 'Willkommen im AppLauncher.', en: 'Welcome to AppLauncher.' });
       }
     };
     fetchInfo();

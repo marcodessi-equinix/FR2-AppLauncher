@@ -52,34 +52,30 @@ export function parseBookmarksFromHtml(html: string): ImportPreviewData {
   const groups: ParsedGroup[] = [];
   let totalLinks = 0;
 
-  // Neuer, robusterer Ansatz: 
-  // Finde ALLE <h3> Elemente auf der ganzen Seite (das sind die Ordner/Kategorien in den meisten Exportern)
+  // Find all <h3> elements on the page (these are the folders/categories in most browsers' bookmark exports)
   $('h3').each((_, h3) => {
       const $h3 = $(h3);
       const groupTitle = $h3.text().trim();
       
-      if (!groupTitle) return; // Leere Ordnernamen ignorieren
+      if (!groupTitle) return; // Skip empty folder names
       
       const groupLinks: ParsedLink[] = [];
 
-      // Suche das dazugehörige <dl> Tag, welches die Links fassen sollte.
-      // Meistens ist es direkt das nächste <dl> Geschwister-Element oder ein Parent/Sibling-Konstrukt
+      // Find the associated <dl> tag that should contain the links
       let $dl = $h3.next('dl');
       if (!$dl.length) $dl = $h3.parent().next('dl');
       if (!$dl.length) $dl = $h3.closest('dt').next('dl');
 
       if ($dl.length) {
-          // Innerhalb dieses <dl> suchen wir alle <a> Tags (die eigentlichen Lesezeichen)
-          // Wir verwenden .children() oder .find(), beschränken es aber auf die erste Ebene von <dt> falls verschachtelt
-          // Um extrem tiefe Verschachtelungen einfach in den Hauptordner zu flachen, nehmen wir einfach ALLE <a>
+          // Find all <a> tags inside this <dl> (the actual bookmarks)
+          // Deeply nested folders are flattened into the parent group
           $dl.find('a').each((_, a) => {
               const $link = $(a);
               const title = $link.text().trim();
               const url = $link.attr('href');
               
-              // Vermeide ungültige oder gefährliche URLs
+              // Skip invalid or dangerous URLs
               if (title && url && isAllowedUrl(url)) {
-                  // Icon verarbeiten und validieren
                   let icon = $link.attr('icon') || '';
                   if (icon && !isAllowedIcon(icon)) {
                       icon = '';
@@ -91,7 +87,7 @@ export function parseBookmarksFromHtml(html: string): ImportPreviewData {
           });
       }
 
-      // Nur Ordner hinzufügen, die auch tatsächliche Links enthalten
+      // Only add folders that contain actual links
       if (groupLinks.length > 0) {
           groups.push({ title: groupTitle, links: groupLinks });
       }
@@ -154,8 +150,4 @@ export function saveImportedData(data: ImportPreviewData, keepExisting: boolean 
     return { success: true, groups: totalGroups, links: totalLinks, message: 'Import successful' };
 }
 
-// Deprecated compat function for script
-export function importBookmarksFromHtml(html: string) {
-    const data = parseBookmarksFromHtml(html);
-    return saveImportedData(data, false); // Default overwrite behavior for CLI script
-}
+
