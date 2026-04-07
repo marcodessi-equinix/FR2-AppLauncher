@@ -1,3 +1,5 @@
+name: applauncher
+
 services:
   backend:
     build:

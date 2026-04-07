@@ -50,7 +50,7 @@ AppLauncher is a lightweight, self-hosted web application for organizing and sha
 ### Option A: Interactive Install Script
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/AppLauncher.git
+git clone https://github.com/marcodessi-equinix/AppLauncher.git
 cd AppLauncher
 bash install.sh
 ```
@@ -60,17 +60,24 @@ The script auto-detects Docker or Podman, generates a secure `.env`, builds the 
 ### Option B: Manual Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/AppLauncher.git
+git clone https://github.com/marcodessi-equinix/AppLauncher.git
 cd AppLauncher
 cp .env.example .env
 ```
 
-Edit `.env` — set at least:
+Edit `.env` — copy this template and fill in your values:
 
 ```env
-JWT_SECRET=<random-64-char-hex-string>
-ADMIN_PASSWORD=<your-strong-password>
+# ── Required ──────────────────────────────────
+JWT_SECRET=PASTE_A_RANDOM_64_CHAR_HEX_STRING_HERE
+ADMIN_PASSWORD=CHANGE_ME_TO_A_STRONG_PASSWORD
+
+# ── Optional (defaults shown) ─────────────────
+# APP_PORT=9020
+# COOKIE_SECURE=auto
 ```
+
+> **Tip:** Generate a secure JWT secret with: `openssl rand -hex 32`
 
 Then start the stack:
 
@@ -94,11 +101,9 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 | Variable | Description | Default |
 | --- | --- | --- |
 | `JWT_SECRET` | **Required.** Secret for signing auth tokens (min 32 chars). | — |
-| `ADMIN_PASSWORD` | **Required.** Admin login password (plaintext or bcrypt hash). | — |
+| `ADMIN_PASSWORD` | **Required.** Admin login password. | — |
 | `APP_PORT` | Host port the app listens on. | `9020` |
 | `COOKIE_SECURE` | Cookie security: `auto`, `true`, or `false`. | `auto` |
-| `FRONTEND_URL` | Extra allowed CORS origins (comma-separated). Usually empty. | — |
-| `DATABASE_PATH` | SQLite file path inside the container. | `/app/data/applauncher.db` |
 
 > **Note:** `COOKIE_SECURE=auto` detects HTTPS via `X-Forwarded-Proto`. If your reverse proxy does not forward this header, set `COOKIE_SECURE=true` explicitly when using HTTPS.
 

@@ -9,7 +9,7 @@ export const ThemeManager: React.FC = () => {
 
     const applyTheme = (theme: Theme) => {
       root.classList.add('theme-switching');
-      root.classList.remove('dark', 'light', 'equinix');
+      root.classList.remove('dark', 'light');
       root.classList.add(theme);
       root.setAttribute('data-theme', theme);
       root.style.colorScheme = theme;
