@@ -52,9 +52,10 @@ services:
 
 networks:
   fr2-applauncher:
+    driver: bridge
   proxy:
     name: ${PROXY_NETWORK:-nginx-proxy-manager_default}
-    external: true
+    external: ${PROXY_NETWORK_EXTERNAL:-false}
 
 volumes:
   fr2-applauncher-data:
