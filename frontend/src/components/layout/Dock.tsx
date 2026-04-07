@@ -5,17 +5,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { DynamicIcon } from '../ui/DynamicIcon';
 import { cn } from '../../lib/utils';
 import { VersionChangelogDialog } from './VersionChangelogDialog';
-import { getLatestChangelogEntry } from '../../lib/changelog';
+import { getAppVersionInfo } from '../../lib/version';
 
 export const Dock: React.FC = () => {
   const groups = useStore((state) => state.groups);
   const activeCategory = useStore((state) => state.activeCategory);
   const setActiveCategory = useStore((state) => state.setActiveCategory);
   const favorites = useStore((state) => state.favorites);
-  const releaseVersion = getLatestChangelogEntry()?.version || import.meta.env.VITE_APP_VERSION || __APP_VERSION__ || 'v0.1.0';
-  const buildVersion = __APP_BUILD_VERSION__ || releaseVersion;
+  const { releaseVersion, buildVersion, buildDate } = getAppVersionInfo();
   const visibleVersion = releaseVersion;
-  const buildDate = __BUILD_DATE__;
   const [isVersionDialogOpen, setIsVersionDialogOpen] = React.useState(false);
 
   const handleVersionDialogChange = React.useCallback((open: boolean) => {
@@ -94,7 +92,8 @@ export const Dock: React.FC = () => {
       <VersionChangelogDialog
         isOpen={isVersionDialogOpen}
         onOpenChange={handleVersionDialogChange}
-        currentVersion={buildVersion}
+        currentVersion={releaseVersion}
+        buildVersion={buildVersion}
         releaseVersion={releaseVersion}
         buildDate={buildDate}
       />
