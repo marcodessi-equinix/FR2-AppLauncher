@@ -134,11 +134,10 @@ Ohne diese beiden Werte startet der Stack nicht.
 | `FRONTEND_PORT` | Host-Port für das Frontend | `9020` |
 | `DATABASE_PATH` | SQLite-Datei im Container | `/app/data/applauncher.db` |
 | `PROXY_NETWORK` | Externes Netzwerk für Nginx Proxy Manager | `nginx-proxy-manager_default` |
-| `VITE_BUILD_NUMBER` | optionaler manueller Override für den sichtbaren Build-Stand | automatisch |
 | `FRONTEND_URL` | zusätzliche erlaubte Origins, kommagetrennt | leer |
 | `COOKIE_SECURE` | nur bei HTTPS auf `true` setzen | `false` |
 
-Bei Portainer-Deployments aus einem Git-Repository ist das `.git`-Verzeichnis im Build-Kontext oft nicht vorhanden. In diesem Fall baut das Frontend trotzdem erfolgreich, und der sichtbare Build-Stand fällt ohne `VITE_BUILD_NUMBER` auf den Standardwert `001` zurück.
+Bei Portainer-Deployments aus einem Git-Repository ist das `.git`-Verzeichnis im Build-Kontext oft nicht vorhanden. In diesem Fall baut das Frontend trotzdem erfolgreich, und der sichtbare Build-Stand wird automatisch aus dem Frontend-Inhalt berechnet. Sobald sich der relevante Frontend-Stand ändert, ändert sich damit auch die sichtbare Build-Version unten in der App.
 
 ### Hinweise zum Proxy-Betrieb
 
@@ -240,7 +239,7 @@ Wichtig:
 - `JWT_SECRET` darf nicht leer sein und sollte mindestens 32 Zeichen lang sein.
 - `ADMIN_PASSWORD` darf nicht leer sein. Klartext ist erlaubt, ein bcrypt-Hash ebenfalls.
 - Der sichtbare Build-Stand wird automatisch aus dem Git-Verlauf der aktuellen Release-Reihe erzeugt, also z. B. `1.6.001`, `1.6.002`, `1.6.003`.
-- `VITE_BUILD_NUMBER` ist nur noch ein optionaler manueller Override, falls du in Sonderfaellen einen festen Stand vorgeben willst.
+- Der sichtbare Build-Stand unten in der App wird automatisch aus Git oder, falls Git im Build-Kontext fehlt, aus dem gebauten Frontend-Inhalt abgeleitet.
 - `FRONTEND_URL` im Standardfall leer lassen. Nur setzen, wenn du bewusst zusätzliche Origins erlauben willst.
 - `COOKIE_SECURE=false` ist für direkten HTTP-Zugriff gedacht. Hinter einem HTTPS-Reverse-Proxy kann die App HTTPS normalerweise automatisch erkennen; falls dein Proxy `X-Forwarded-Proto` nicht korrekt weiterreicht, setze `COOKIE_SECURE=true` explizit.
 

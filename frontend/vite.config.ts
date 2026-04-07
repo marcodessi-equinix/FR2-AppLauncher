@@ -1,4 +1,5 @@
 import fs from "fs"
+import crypto from "crypto"
 import path from "path"
 import { execFileSync } from "child_process"
 import react from "@vitejs/plugin-react"
@@ -58,6 +59,54 @@ const runGit = (args: string[], cwd: string): string =>
     stdio: ['ignore', 'pipe', 'ignore'],
   }).toString().trim()
 
+const collectFiles = (targetPath: string): string[] => {
+  if (!fs.existsSync(targetPath)) {
+    return []
+  }
+
+  const stat = fs.statSync(targetPath)
+  if (stat.isFile()) {
+    return [targetPath]
+  }
+
+  return fs.readdirSync(targetPath)
+    .sort((left, right) => left.localeCompare(right))
+    .flatMap((entry) => collectFiles(path.join(targetPath, entry)))
+}
+
+const resolveContentBuildNumber = (): string => {
+  try {
+    const repoRoot = path.resolve(__dirname, '..')
+    const fingerprintTargets = [
+      path.join(repoRoot, 'package.json'),
+      path.join(__dirname, 'package.json'),
+      path.join(__dirname, 'index.html'),
+      path.join(__dirname, 'vite.config.ts'),
+      path.join(__dirname, 'tailwind.config.js'),
+      path.join(__dirname, 'postcss.config.js'),
+      path.join(__dirname, 'src'),
+      path.join(__dirname, 'public'),
+    ]
+
+    const hash = crypto.createHash('sha1')
+    let hasInputs = false
+
+    for (const targetPath of fingerprintTargets) {
+      for (const filePath of collectFiles(targetPath)) {
+        hasInputs = true
+        hash.update(path.relative(repoRoot, filePath))
+        hash.update('\n')
+        hash.update(fs.readFileSync(filePath))
+        hash.update('\n')
+      }
+    }
+
+    return hasInputs ? hash.digest('hex').slice(0, 6).toUpperCase() : 'LOCAL'
+  } catch {
+    return 'LOCAL'
+  }
+}
+
 const resolveGitBuildNumber = (releaseVersion: string): string | null => {
   try {
     const repoRoot = path.resolve(__dirname, '..')
@@ -96,12 +145,7 @@ const resolveGitBuildNumber = (releaseVersion: string): string | null => {
 }
 
 const resolveBuildNumber = (releaseVersion: string): string => {
-  const explicitBuildNumber = process.env.VITE_BUILD_NUMBER || process.env.BUILD_NUMBER
-  if (explicitBuildNumber) {
-    return normalizeBuildNumber(explicitBuildNumber)
-  }
-
-  return resolveGitBuildNumber(releaseVersion) || '001'
+  return resolveGitBuildNumber(releaseVersion) || resolveContentBuildNumber()
 }
 
 const resolvedAppVersion = process.env.VITE_APP_VERSION || `v${resolvePackageVersion()}`
