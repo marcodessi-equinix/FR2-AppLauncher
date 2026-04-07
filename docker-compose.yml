@@ -37,8 +37,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     networks:
       - fr2-applauncher
       - proxy
