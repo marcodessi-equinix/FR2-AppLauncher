@@ -135,9 +135,11 @@ Ohne diese beiden Werte startet der Stack nicht.
 | `DATABASE_PATH` | SQLite-Datei im Container | `/app/data/applauncher.db` |
 | `PROXY_NETWORK` | Externes Netzwerk für Nginx Proxy Manager | `nginx-proxy-manager_default` |
 | `FRONTEND_URL` | zusätzliche erlaubte Origins, kommagetrennt | leer |
-| `COOKIE_SECURE` | nur bei HTTPS auf `true` setzen | `false` |
+| `COOKIE_SECURE` | Cookie-Sicherheit: `auto`, `true` oder `false` | `auto` |
 
 Bei Portainer-Deployments aus einem Git-Repository ist das `.git`-Verzeichnis im Build-Kontext oft nicht vorhanden. In diesem Fall baut das Frontend trotzdem erfolgreich, und der sichtbare Build-Stand wird automatisch aus dem Frontend-Inhalt berechnet. Sobald sich der relevante Frontend-Stand ändert, ändert sich damit auch die sichtbare Build-Version unten in der App.
+
+Für den normalen Betrieb hinter Nginx Proxy Manager sollte `COOKIE_SECURE=auto` verwendet werden. Dann erkennt das Backend selbst, ob der Request über HTTPS kommt, und setzt die Session-Cookies passend. Ein festes `COOKIE_SECURE=true` zusammen mit einer `http://...`-URL ist eine widersprüchliche Konfiguration.
 
 ### Hinweise zum Proxy-Betrieb
 
@@ -240,6 +242,7 @@ Wichtig:
 - `ADMIN_PASSWORD` darf nicht leer sein. Klartext ist erlaubt, ein bcrypt-Hash ebenfalls.
 - Der sichtbare Build-Stand wird automatisch aus dem Git-Verlauf der aktuellen Release-Reihe erzeugt, also z. B. `1.6.001`, `1.6.002`, `1.6.003`.
 - Der sichtbare Build-Stand unten in der App wird automatisch aus Git oder, falls Git im Build-Kontext fehlt, aus dem gebauten Frontend-Inhalt abgeleitet.
+- Für denselben Host hinter dem Reverse Proxy kann `FRONTEND_URL` leer bleiben. Falls du es setzt, dann ohne Pfad und passend zum echten externen Protokoll, also z. B. `https://fr2-applauncher.equinix.com`.
 - `FRONTEND_URL` im Standardfall leer lassen. Nur setzen, wenn du bewusst zusätzliche Origins erlauben willst.
 - `COOKIE_SECURE=false` ist für direkten HTTP-Zugriff gedacht. Hinter einem HTTPS-Reverse-Proxy kann die App HTTPS normalerweise automatisch erkennen; falls dein Proxy `X-Forwarded-Proto` nicht korrekt weiterreicht, setze `COOKIE_SECURE=true` explizit.
 

@@ -23,6 +23,7 @@ const JWT_SECRET = process.env.JWT_SECRET || '';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const ALLOW_INSECURE_DEFAULTS = process.env.ALLOW_INSECURE_DEFAULTS === 'true';
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const COOKIE_SECURE_MODE = (process.env.COOKIE_SECURE || 'auto').trim().toLowerCase();
 const explicitAllowedOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
   .map((origin) => origin.trim())
@@ -56,6 +57,19 @@ function assertSecureConfig(): void {
   if (!ALLOW_INSECURE_DEFAULTS && (isWeakSecret(JWT_SECRET) || isWeakAdminPassword(ADMIN_PASSWORD))) {
     console.error('Refusing to start with insecure credentials. Set strong JWT_SECRET and ADMIN_PASSWORD.');
     process.exit(1);
+  }
+}
+
+function warnOnSuspiciousConfig(): void {
+  if (!['', 'auto', 'true', 'false'].includes(COOKIE_SECURE_MODE)) {
+    console.warn(`Unsupported COOKIE_SECURE value '${process.env.COOKIE_SECURE}'. Expected auto, true, or false. Falling back to automatic proxy detection.`);
+  }
+
+  for (const origin of explicitAllowedOrigins) {
+    const normalizedOrigin = normalizeOrigin(origin).toLowerCase();
+    if (COOKIE_SECURE_MODE === 'true' && normalizedOrigin.startsWith('http://')) {
+      console.warn(`COOKIE_SECURE=true conflicts with non-HTTPS FRONTEND_URL '${origin}'. Cookies will follow the actual proxy/request protocol instead.`);
+    }
   }
 }
 
@@ -139,6 +153,7 @@ export function createApp(): express.Express {
 export const startServer = async () => {
   try {
     assertSecureConfig();
+    warnOnSuspiciousConfig();
     await runMigrations();
 
     const app = createApp();

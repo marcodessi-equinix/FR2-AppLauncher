@@ -9,7 +9,7 @@ const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
-const COOKIE_SECURE = process.env.COOKIE_SECURE === 'true';
+const COOKIE_SECURE_MODE = (process.env.COOKIE_SECURE || 'auto').trim().toLowerCase();
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 10;
@@ -29,7 +29,9 @@ function isHttpsRequest(req: express.Request): boolean {
 }
 
 function getAuthCookieBaseOptions(req: express.Request): express.CookieOptions {
-  const secure = COOKIE_SECURE || isHttpsRequest(req);
+  const secure = COOKIE_SECURE_MODE === 'false'
+    ? false
+    : isHttpsRequest(req);
 
   return {
     httpOnly: true,
