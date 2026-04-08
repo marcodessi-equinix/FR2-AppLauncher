@@ -10,6 +10,7 @@ import api from '../../lib/api';
 import { Group } from '../../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { upsertGroupInDashboard } from '../../lib/dashboardData';
+import { useI18n } from '../../lib/i18n';
 
 interface ManageGroupModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface ManageGroupModalProps {
 }
 
 export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onClose, group }) => {
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [order, setOrder] = useState(0);
   const [icon, setIcon] = useState('');
@@ -72,13 +74,13 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
       <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300 relative z-10 rounded-3xl overflow-hidden bg-card/95 border-white/10">
         <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] pb-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">
-            {group ? 'Edit Group' : 'New Group'}
+            {group ? t('groups.editGroup') : t('groups.newGroup')}
           </h2>
           <button 
             onClick={onClose}
             type="button"
-            title="Close group modal"
-            aria-label="Close group modal"
+            title={t('groups.closeGroupModal')}
+            aria-label={t('groups.closeGroupModal')}
             className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
           >
             <X className="h-5 w-5" />
@@ -88,7 +90,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 pt-5">
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">Icon</label>
+              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.icon')}</label>
               <div className="flex gap-3 items-center">
                 {icon && (
                   <div className="h-10 w-10 rounded-xl glass-surface flex items-center justify-center">
@@ -101,19 +103,19 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
                   onClick={() => setShowIconPicker(true)}
                   className="flex-1 rounded-xl"
                 >
-                  {icon ? 'Change Icon' : 'Select Icon'}
+                  {icon ? t('groups.changeIcon') : t('groups.selectIcon')}
                 </Button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">Title</label>
+              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.title')}</label>
               <Input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Group Title"
+                placeholder={t('groups.groupTitle')}
                 className="bg-background/50 border-input"
               />
             </div>
@@ -126,7 +128,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
                onClick={onClose}
                className="rounded-xl"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -135,7 +137,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               <Save className="h-4 w-4" />
-              Save
+              {t('common.save')}
             </Button>
           </CardFooter>
         </form>
@@ -149,12 +151,12 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
           />
           <Card className="w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
             <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] py-4 px-6">
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">Icon auswählen</h3>
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">{t('groups.selectIcon')}</h3>
               <button 
                 onClick={() => setShowIconPicker(false)}
                 type="button"
-                title="Close icon picker"
-                aria-label="Close icon picker"
+                title={t('groups.closeIconPicker')}
+                aria-label={t('groups.closeIconPicker')}
                 className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
               >
                 <X className="h-5 w-5" />

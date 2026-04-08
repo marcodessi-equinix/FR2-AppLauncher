@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Lock, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
 import { useStore } from '../../store/useStore';
+import { useI18n } from '../../lib/i18n';
 
 interface LoginErrorResponse {
   response?: {
@@ -18,6 +19,7 @@ interface LoginModalProps {
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useI18n();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,11 +46,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     } catch (err) {
       const errorResponse = err as LoginErrorResponse;
       if (errorResponse.response?.status === 403) {
-        setError(errorResponse.response.data?.error || 'Another staff member is currently logged in. Please wait until they are finished before making changes.');
+        setError(errorResponse.response.data?.error || t('login.concurrentSession'));
       } else if (errorResponse.response?.status === 429) {
-        setError(errorResponse.response.data?.error || 'Too many attempts. Please try again later.');
+        setError(errorResponse.response.data?.error || t('login.tooManyAttempts'));
       } else {
-        setError('Invalid password');
+        setError(t('login.invalidPassword'));
       }
     } finally {
       setIsLoading(false);
@@ -67,13 +69,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         <div className="px-8 py-6 flex items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)]">
           <div className="flex items-center gap-3">
             <Lock className="h-5 w-5 text-primary/60" />
-            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">Admin Login</h2>
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">{t('login.title')}</h2>
           </div>
           <button 
             onClick={onClose}
             type="button"
-            title="Close login modal"
-            aria-label="Close login modal"
+            title={t('login.close')}
+            aria-label={t('login.close')}
             className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
           >
             <X className="h-5 w-5" />
@@ -85,7 +87,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           <div>
             <input
               type="password"
-              placeholder="Enter Admin Password"
+              placeholder={t('login.passwordPlaceholder')}
               className="w-full h-12 rounded-xl glass-input px-4 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -100,7 +102,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             className="w-full h-12 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors duration-200 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-bold tracking-wide shadow-lg shadow-primary/20"
           >
             {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Login
+            {t('login.submit')}
           </button>
         </form>
       </div>

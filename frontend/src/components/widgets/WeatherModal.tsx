@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Wind, Droplets, Sunrise, Sunset, Gauge } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { WeatherData } from '../../hooks/useWeather';
+import { useI18n } from '../../lib/i18n';
 
 interface WeatherModalProps {
   isOpen: boolean;
@@ -9,18 +10,18 @@ interface WeatherModalProps {
   data: WeatherData | null;
 }
 
-// Timeline slot labels & icons
-const TIMELINE_SLOTS = [
-  { key: 'morning' as const, label: 'Morgen',  time: '07:00', emoji: '🌅' },
-  { key: 'midday'  as const, label: 'Mittag',  time: '13:00', emoji: '☀️' },
-  { key: 'evening' as const, label: 'Abend',   time: '19:00', emoji: '🌆' },
-  { key: 'night'   as const, label: 'Nacht',   time: '23:00', emoji: '🌙' },
-];
-
 export const WeatherModal: React.FC<WeatherModalProps> = ({ isOpen, onClose, data }) => {
+  const { t } = useI18n();
+
   if (!isOpen || !data) return null;
 
   const { current, forecast, todayTimeline, details } = data;
+  const timelineSlots = [
+    { key: 'morning' as const, label: t('weather.timelineMorning'), time: '07:00' },
+    { key: 'midday' as const, label: t('weather.timelineMidday'), time: '13:00' },
+    { key: 'evening' as const, label: t('weather.timelineEvening'), time: '19:00' },
+    { key: 'night' as const, label: t('weather.timelineNight'), time: '23:00' },
+  ];
 
   // Pick today entry (index 0) to show min temp in header
   const today = forecast[0];
@@ -55,7 +56,7 @@ export const WeatherModal: React.FC<WeatherModalProps> = ({ isOpen, onClose, dat
                 </div>
                 <p className="text-base font-bold text-primary mt-1">{current.description}</p>
                 <p className="text-xs text-muted-foreground/50 font-semibold mt-0.5 uppercase tracking-widest">
-                  Frankfurt · {current.isDay ? 'Tagsüber' : 'Nachts'}
+                  Frankfurt · {current.isDay ? t('weather.daytime') : t('weather.nighttime')}
                 </p>
                 {today && (
                   <p className="text-xs text-muted-foreground/40 mt-1 tabular-nums">
@@ -67,7 +68,7 @@ export const WeatherModal: React.FC<WeatherModalProps> = ({ isOpen, onClose, dat
 
             <button 
               onClick={onClose}
-              title="Schließen"
+              title={t('weather.close')}
               className="p-2 hover:bg-secondary rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90 shrink-0"
             >
               <X className="h-5 w-5" />
@@ -104,9 +105,9 @@ export const WeatherModal: React.FC<WeatherModalProps> = ({ isOpen, onClose, dat
 
           {/* Today Timeline — 4 slots */}
           <div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">Heute</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">{t('weather.titleToday')}</h3>
             <div className="grid grid-cols-4 gap-3">
-              {TIMELINE_SLOTS.map((slot, i) => {
+              {timelineSlots.map((slot, i) => {
                 const slotData = todayTimeline[slot.key];
                 const isNow = (() => {
                   const h = new Date().getHours();
@@ -132,10 +133,10 @@ export const WeatherModal: React.FC<WeatherModalProps> = ({ isOpen, onClose, dat
 
           {/* 7-Day Forecast */}
           <div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">7-Tage Vorhersage</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 mb-3">{t('weather.titleForecast')}</h3>
             <div className="space-y-2">
               {forecast.slice(0, 7).map((item, idx) => (
-                <ForecastRow key={idx} item={item} isToday={idx === 0} delay={idx * 40} />
+                <ForecastRow key={idx} item={item} isToday={idx === 0} delay={idx * 40} todayLabel={t('weather.today')} />
               ))}
             </div>
           </div>
@@ -152,32 +153,36 @@ const TimelineCard = ({
   label, time, temp, icon: Icon, isActive, delay
 }: {
   label: string; time: string; temp: number; icon: React.ElementType; isActive: boolean; delay: number;
-}) => (
-  <div
-    className={cn(
-      "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all duration-300",
-      isActive
-        ? "bg-primary/15 border-primary/30 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] scale-[1.03]"
-        : "bg-secondary/10 border-white/5 hover:bg-secondary/20 hover:border-white/10"
-    )}
-    style={{ animationDelay: `${delay}ms` }}
-  >
-    {isActive && (
-      <span className="text-[9px] font-black uppercase tracking-widest text-primary px-1.5 py-0.5 bg-primary/20 rounded-full -mt-1 mb-0.5">
-        Jetzt
-      </span>
-    )}
-    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{label}</span>
-    <span className="text-[9px] text-muted-foreground/30 tabular-nums">{time}</span>
-    <div className="h-9 w-9 flex items-center justify-center my-0.5">
-      <Icon className="w-full h-full" />
+}) => {
+  const { t } = useI18n();
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all duration-300",
+        isActive
+          ? "bg-primary/15 border-primary/30 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] scale-[1.03]"
+          : "bg-secondary/10 border-white/5 hover:bg-secondary/20 hover:border-white/10"
+      )}
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      {isActive && (
+        <span className="text-[9px] font-black uppercase tracking-widest text-primary px-1.5 py-0.5 bg-primary/20 rounded-full -mt-1 mb-0.5">
+          {t('weather.now')}
+        </span>
+      )}
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{label}</span>
+      <span className="text-[9px] text-muted-foreground/30 tabular-nums">{time}</span>
+      <div className="h-9 w-9 flex items-center justify-center my-0.5">
+        <Icon className="w-full h-full" />
+      </div>
+      <span className="text-lg font-black text-foreground tabular-nums">{temp}°</span>
     </div>
-    <span className="text-lg font-black text-foreground tabular-nums">{temp}°</span>
-  </div>
-);
+  );
+};
 
 type ForecastItem = WeatherData['forecast'][number];
-const ForecastRow = ({ item, isToday, delay }: { item: ForecastItem; isToday: boolean; delay: number }) => (
+const ForecastRow = ({ item, isToday, delay, todayLabel }: { item: ForecastItem; isToday: boolean; delay: number; todayLabel: string }) => (
   <div
     className={cn(
       "flex items-center gap-4 px-4 py-3 rounded-2xl border transition-all duration-300 group",
@@ -192,7 +197,7 @@ const ForecastRow = ({ item, isToday, delay }: { item: ForecastItem; isToday: bo
       "w-8 text-xs font-black uppercase",
       isToday ? "text-primary" : "text-muted-foreground/70"
     )}>
-      {isToday ? 'Heute' : item.day}
+      {isToday ? todayLabel : item.day}
     </span>
 
     {/* Icon */}

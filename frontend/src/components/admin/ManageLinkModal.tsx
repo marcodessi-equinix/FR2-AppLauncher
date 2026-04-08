@@ -13,6 +13,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '../ui/card';
 import { DynamicIcon } from '../ui/DynamicIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '../../lib/utils';
+import { useI18n } from '../../lib/i18n';
 
 interface ManageLinkModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ interface ManageLinkModalProps {
 }
 
 export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClose, link, initialGroupId }) => {
+  const { t } = useI18n();
   const groups = useStore((state) => state.groups);
   const queryClient = useQueryClient();
 
@@ -104,13 +106,13 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
       <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto flex flex-col relative z-10 rounded-3xl overflow-hidden bg-card/95 border-white/10">
         <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] pb-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">
-            {link ? 'Edit Link' : 'New Link'}
+            {link ? t('links.editLink') : t('links.newLink')}
           </h2>
           <button 
             onClick={onClose}
             type="button"
-            title="Close link modal"
-            aria-label="Close link modal"
+            title={t('links.closeLinkModal')}
+            aria-label={t('links.closeLinkModal')}
             className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
           >
             <X className="h-5 w-5" />
@@ -121,13 +123,13 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
           <CardContent className="space-y-4 pt-5 flex-1">
             <div className="grid grid-cols-2 gap-4">
                <div className="space-y-2">
-                <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">Group</label>
+                <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.group')}</label>
                 <Popover open={isGroupPickerOpen} onOpenChange={setIsGroupPickerOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      title="Gruppe auswählen"
-                      aria-label="Gruppe auswählen"
+                      title={t('links.selectGroup')}
+                      aria-label={t('links.selectGroup')}
                       className="w-full h-10 px-3 rounded-xl glass-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-colors duration-200 bg-background/50 border border-input flex items-center justify-between gap-3"
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
@@ -137,7 +139,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                           </span>
                         ) : null}
                         <span className="truncate text-left">
-                          {selectedGroup?.title || 'Keine Gruppe'}
+                          {selectedGroup?.title || t('links.noGroup')}
                         </span>
                       </span>
                       <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isGroupPickerOpen && 'rotate-180')} />
@@ -184,7 +186,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                 </Popover>
               </div>
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">Order</label>
+                <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.order')}</label>
                 <Input
                   type="number"
                   value={order}
@@ -194,18 +196,18 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">Title</label>
+              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.title')}</label>
               <Input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Link Title"
+                placeholder={t('links.linkTitle')}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">URL</label>
+              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.url')}</label>
               <Input
                 type="url"
                 required
@@ -216,17 +218,17 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">Description (Optional)</label>
+              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('links.descriptionOptional')}</label>
               <Input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Short description"
+                placeholder={t('links.shortDescription')}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">Icon</label>
+              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.icon')}</label>
               <div className="flex gap-3 items-center">
                 {icon && (
                   <div className="h-10 w-10 rounded-xl glass-surface flex items-center justify-center overflow-hidden">
@@ -239,7 +241,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                   onClick={() => setShowIconPicker(true)}
                   className="flex-1 rounded-xl"
                 >
-                  {icon ? 'Change Icon' : 'Select Icon'}
+                  {icon ? t('groups.changeIcon') : t('groups.selectIcon')}
                 </Button>
               </div>
             </div>
@@ -252,7 +254,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                onClick={onClose}
                className="rounded-xl"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -261,7 +263,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               <Save className="h-4 w-4" />
-              Save
+              {t('common.save')}
             </Button>
           </CardFooter>
         </form>
@@ -275,12 +277,12 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
           />
           <Card className="w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
             <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] py-4 px-6">
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">Icon auswählen</h3>
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">{t('groups.selectIcon')}</h3>
               <button 
                 onClick={() => setShowIconPicker(false)}
                 type="button"
-                title="Close icon picker"
-                aria-label="Close icon picker"
+                title={t('groups.closeIconPicker')}
+                aria-label={t('groups.closeIconPicker')}
                 className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
               >
                 <X className="h-5 w-5" />

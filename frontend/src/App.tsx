@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { startTransition } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/layout/Layout';
 import { DashboardGrid } from './components/dashboard/DashboardGrid';
 import { useStore } from './store/useStore';
 import api from './lib/api';
 import { ThemeManager } from './components/ThemeManager';
+import { useI18n } from './lib/i18n';
+import { cn } from './lib/utils';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,13 +20,47 @@ const queryClient = new QueryClient({
 import { SplashIntro } from './components/SplashIntro';
 
 const TIMEOUT_MS = 15 * 60 * 1000; // 15 Minuten
+const INTRO_STORAGE_KEY = 'applauncher_intro_seen';
+
+const shouldForceSplashIntro = () => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const splashParam = searchParams.get('splash');
+
+  return import.meta.env.DEV || splashParam === '1' || splashParam === 'true' || splashParam === 'always';
+};
+
+function LanguageManager() {
+  const { language, locale } = useI18n();
+  const syncPreferredLanguageWithSystem = useStore((state) => state.syncPreferredLanguageWithSystem);
+
+  React.useEffect(() => {
+    syncPreferredLanguageWithSystem();
+
+    const handleLanguageChange = () => {
+      syncPreferredLanguageWithSystem();
+    };
+
+    window.addEventListener('languagechange', handleLanguageChange);
+
+    return () => {
+      window.removeEventListener('languagechange', handleLanguageChange);
+    };
+  }, [syncPreferredLanguageWithSystem]);
+
+  React.useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dataset.locale = locale;
+  }, [language, locale]);
+
+  return null;
+}
 
 function AppContent() {
   const setIsAdmin = useStore((state) => state.setIsAdmin);
   const initClientIdentity = useStore((state) => state.initClientIdentity);
   const isAdmin = useStore((state) => state.isAdmin);
   const [showIntro, setShowIntro] = React.useState(() => {
-    return !localStorage.getItem('applauncher_intro_seen');
+    return shouldForceSplashIntro() || !localStorage.getItem(INTRO_STORAGE_KEY);
   });
   const [cameFromSplash, setCameFromSplash] = React.useState(false);
 
@@ -116,22 +152,36 @@ function AppContent() {
     };
   }, [isAdmin, setIsAdmin]);
 
-  const handleSplashComplete = () => {
-    localStorage.setItem('applauncher_intro_seen', 'true');
-    setCameFromSplash(true);
-    setShowIntro(false);
-  };
+  const handleSplashExitStart = React.useCallback(() => {
+    startTransition(() => {
+      setCameFromSplash(true);
+    });
+  }, []);
 
-  if (showIntro) {
-    return <SplashIntro onComplete={handleSplashComplete} />;
-  }
+  const handleSplashComplete = React.useCallback(() => {
+    if (!shouldForceSplashIntro()) {
+      localStorage.setItem(INTRO_STORAGE_KEY, 'true');
+    }
+
+    startTransition(() => {
+      setShowIntro(false);
+    });
+  }, []);
 
   return (
-    <div className={cameFromSplash ? 'animate-[dashboard-reveal_0.5s_ease-out_forwards]' : undefined}>
-      <Layout>
-        <DashboardGrid />
-      </Layout>
-    </div>
+    <>
+      <div
+        className={cn(
+          showIntro && !cameFromSplash && 'splash-dashboard-underlay',
+          cameFromSplash && 'splash-dashboard-reveal',
+        )}
+      >
+        <Layout>
+          <DashboardGrid />
+        </Layout>
+      </div>
+      {showIntro ? <SplashIntro onExitStart={handleSplashExitStart} onComplete={handleSplashComplete} /> : null}
+    </>
   );
 }
 
@@ -142,6 +192,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={300}>
         <ThemeManager />
+        <LanguageManager />
         <AppContent />
       </TooltipProvider>
     </QueryClientProvider>

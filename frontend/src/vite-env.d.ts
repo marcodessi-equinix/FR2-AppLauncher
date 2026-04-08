@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
-declare const __APP_VERSION__: string;
-declare const __APP_BUILD_VERSION__: string;
-declare const __BUILD_DATE__: string;
+declare module 'virtual:build-meta' {
+  export const buildMeta: {
+    appVersion: string;
+    buildVersion: string;
+    buildDate: string;
+    buildTime: string;
+  };
+}

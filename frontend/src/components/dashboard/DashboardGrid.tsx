@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { Suspense, useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { Group, Link } from '../../types';
@@ -8,8 +8,6 @@ import { useStore } from '../../store/useStore';
 import { Loader2, AlertCircle, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { removeGroupFromDashboard, removeLinkFromDashboard } from '../../lib/dashboardData';
 
-import { ManageGroupModal } from '../admin/ManageGroupModal';
-import { ManageLinkModal } from '../admin/ManageLinkModal';
 import { Button } from '../ui/button';
 import {
   CollisionDetection,
@@ -36,6 +34,18 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useI18n } from '../../lib/i18n';
+import { loadIcons } from '@iconify/react';
+
+const ManageGroupModal = React.lazy(async () => {
+  const module = await import('../admin/ManageGroupModal');
+  return { default: module.ManageGroupModal };
+});
+
+const ManageLinkModal = React.lazy(async () => {
+  const module = await import('../admin/ManageLinkModal');
+  return { default: module.ManageLinkModal };
+});
 
 // ==================================================
 // Group Drop Indicator Line
@@ -51,30 +61,34 @@ const GroupDropIndicator: React.FC = () => (
 // ==================================================
 // Group Drag Overlay Preview
 // ==================================================
-const GroupDragOverlay: React.FC<{ group: Group }> = ({ group }) => (
-  <div className="rounded-xl border border-primary/40 bg-card/80 backdrop-blur-sm p-4 md:p-5 shadow-2xl ring-2 ring-primary/30 pointer-events-none">
-    <div className="flex items-center gap-2.5">
-      <div className="p-1 rounded-md bg-muted text-foreground">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
-      </div>
-      <div className="h-6 w-1 bg-primary/70 rounded-full" />
-      <span className="font-bold text-xl tracking-tight text-foreground">{group.title}</span>
-      <span className="text-[10px] font-bold text-muted-foreground px-2 py-0.5 rounded-md bg-muted/50">
-        {(group.links || []).length}
-      </span>
-    </div>
-    <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
-      {(group.links || []).slice(0, 6).map(link => (
-        <div key={link.id} className="h-16 rounded-lg bg-muted/40 border border-border/30 animate-none" />
-      ))}
-      {(group.links || []).length > 6 && (
-        <div className="h-16 rounded-lg bg-muted/20 border border-border/20 flex items-center justify-center text-xs text-muted-foreground font-medium">
-          +{(group.links || []).length - 6} more
+const GroupDragOverlay: React.FC<{ group: Group }> = ({ group }) => {
+  const { t } = useI18n();
+
+  return (
+    <div className="rounded-xl border border-primary/40 bg-card/80 backdrop-blur-sm p-4 md:p-5 shadow-2xl ring-2 ring-primary/30 pointer-events-none">
+      <div className="flex items-center gap-2.5">
+        <div className="p-1 rounded-md bg-muted text-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
         </div>
-      )}
+        <div className="h-6 w-1 bg-primary/70 rounded-full" />
+        <span className="font-bold text-xl tracking-tight text-foreground">{group.title}</span>
+        <span className="text-[10px] font-bold text-muted-foreground px-2 py-0.5 rounded-md bg-muted/50">
+          {(group.links || []).length}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+        {(group.links || []).slice(0, 6).map(link => (
+          <div key={link.id} className="h-16 rounded-lg bg-muted/40 border border-border/30 animate-none" />
+        ))}
+        {(group.links || []).length > 6 && (
+          <div className="h-16 rounded-lg bg-muted/20 border border-border/20 flex items-center justify-center text-xs text-muted-foreground font-medium">
+            {t('dashboard.moreCount', { count: (group.links || []).length - 6 })}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const FavoritesPanel: React.FC<{
   activeCategory: string | null;
@@ -84,6 +98,7 @@ const FavoritesPanel: React.FC<{
   onEditLink: (link: Link) => void;
   onDeleteLink: (id: number) => void;
 }> = ({ activeCategory, allLinks, isAdmin, editMode, onEditLink, onDeleteLink }) => {
+  const { t } = useI18n();
   const favorites = useStore((state) => state.favorites);
   const [favoritesExpanded, setFavoritesExpanded] = useState(true);
 
@@ -105,7 +120,7 @@ const FavoritesPanel: React.FC<{
         <div className="flex items-center gap-2.5">
           <div className="h-5 w-1 rounded-full bg-amber-400/60" />
           <h2 className="flex items-center gap-2.5 text-sm font-bold uppercase tracking-[0.18em] text-foreground/85">
-            Favoriten
+            {t('dashboard.favorites')}
             <span className="rounded-full bg-amber-400/10 px-2.5 py-1 text-[10px] font-bold text-amber-400/75">
               {validFavorites.length}
             </span>
@@ -116,7 +131,7 @@ const FavoritesPanel: React.FC<{
           onClick={() => setFavoritesExpanded((current) => !current)}
           className="favorites-toggle inline-flex items-center gap-2 rounded-full border border-amber-400/10 bg-black/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
         >
-          {favoritesExpanded ? 'Ausblenden' : 'Anzeigen'}
+          {favoritesExpanded ? t('dashboard.hide') : t('dashboard.show')}
           {favoritesExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </div>
@@ -220,6 +235,7 @@ const SortableSection: React.FC<{
 // Dashboard Grid
 // ==================================================
 export const DashboardGrid: React.FC = () => {
+  const { t } = useI18n();
   const setGroups = useStore(state => state.setGroups);
   const editMode = useStore(state => state.editMode);
   const isAdmin = useStore(state => state.isAdmin);
@@ -241,6 +257,8 @@ export const DashboardGrid: React.FC = () => {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [selectedLink, setSelectedLink] = useState<Link | null>(null);
   const [targetGroupId, setTargetGroupId] = useState<number | null>(null);
+
+  const allLinks = React.useMemo(() => localGroups.flatMap((group) => group.links || []), [localGroups]);
 
   const { data: groups, isLoading, error } = useQuery({
     queryKey: ['dashboardData'],
@@ -322,6 +340,26 @@ export const DashboardGrid: React.FC = () => {
     }
   }, [groups, setGroups]);
 
+  // Preload all Iconify icons in a single batch request to prevent
+  // frame-by-frame loading as individual <Icon> components fetch one by one.
+  React.useEffect(() => {
+    if (!groups || groups.length === 0) return;
+    const iconSet = new Set<string>();
+    for (const g of groups) {
+      if (g.icon && !g.icon.startsWith('/') && !g.icon.startsWith('http') && !g.icon.startsWith('data:')) {
+        iconSet.add(g.icon.includes(':') ? g.icon : `lucide:${g.icon.toLowerCase()}`);
+      }
+      for (const l of g.links || []) {
+        if (l.icon && !l.icon.startsWith('/') && !l.icon.startsWith('http') && !l.icon.startsWith('data:')) {
+          iconSet.add(l.icon.includes(':') ? l.icon : `lucide:${l.icon.toLowerCase()}`);
+        }
+      }
+    }
+    if (iconSet.size > 0) {
+      loadIcons([...iconSet]);
+    }
+  }, [groups]);
+
   const handleEditGroup = React.useCallback((group: Group) => {
     setSelectedGroup(group);
     setIsGroupModalOpen(true);
@@ -333,7 +371,7 @@ export const DashboardGrid: React.FC = () => {
   }, []);
 
   const handleDeleteGroup = React.useCallback(async (id: number) => {
-    if (!window.confirm('Delete this group and all its links?')) return;
+    if (!window.confirm(t('dashboard.deleteGroupConfirm'))) return;
     try {
       await api.delete(`/groups/${id}`);
       setLocalGroups((current) => removeGroupFromDashboard(current, id));
@@ -341,7 +379,7 @@ export const DashboardGrid: React.FC = () => {
     } catch (e) {
       console.error('Failed to delete group', e);
     }
-  }, [queryClient]);
+  }, [queryClient, t]);
 
   const handleAddLink = React.useCallback((groupId: number) => {
     setSelectedLink(null);
@@ -356,7 +394,7 @@ export const DashboardGrid: React.FC = () => {
   }, []);
 
   const handleDeleteLink = React.useCallback(async (id: number) => {
-    if (!window.confirm('Delete this link?')) return;
+    if (!window.confirm(t('dashboard.deleteLinkConfirm'))) return;
     try {
       await api.delete(`/links/${id}`);
       setLocalGroups((current) => removeLinkFromDashboard(current, id));
@@ -364,7 +402,7 @@ export const DashboardGrid: React.FC = () => {
     } catch (e) {
       console.error('Failed to delete link', e);
     }
-  }, [queryClient]);
+  }, [queryClient, t]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const idStr = String(event.active.id);
@@ -583,8 +621,8 @@ export const DashboardGrid: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-destructive">
         <AlertCircle className="h-10 w-10 mb-4" />
-        <p className="text-lg font-medium">Failed to load AppLauncher data</p>
-        <p className="text-sm text-muted-foreground">Check backend connection</p>
+        <p className="text-lg font-medium">{t('dashboard.loadFailed')}</p>
+        <p className="text-sm text-muted-foreground">{t('dashboard.checkBackend')}</p>
       </div>
     );
   }
@@ -610,7 +648,6 @@ export const DashboardGrid: React.FC = () => {
   const activeDragLink = activeDragId
     ? localGroups.flatMap(g => g.links || []).find(l => `link-${l.id}` === String(activeDragId))
     : null;
-  const allLinks = localGroups.flatMap((group) => group.links || []);
 
   return (
     <div className="space-y-4">
@@ -619,7 +656,7 @@ export const DashboardGrid: React.FC = () => {
         <div className="flex justify-end pb-3 border-b border-border/50">
           <Button onClick={handleCreateGroup} className="gap-2 font-bold uppercase tracking-widest text-xs" variant="premium">
             <Plus className="h-4 w-4" />
-            New Group
+            {t('dashboard.newGroup')}
           </Button>
         </div>
       )}
@@ -639,8 +676,8 @@ export const DashboardGrid: React.FC = () => {
           if (!groups || groups.length === 0) {
             emptyState = (
               <div className="text-center py-16 border-2 border-dashed border-border rounded-xl">
-                <h3 className="text-lg font-semibold text-muted-foreground">No groups found</h3>
-                <p className="text-sm text-muted-foreground mt-1">Log in as admin to create your first group.</p>
+                <h3 className="text-lg font-semibold text-muted-foreground">{t('dashboard.noGroupsFound')}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{t('dashboard.loginAsAdmin')}</p>
               </div>
             );
           }
@@ -730,17 +767,23 @@ export const DashboardGrid: React.FC = () => {
         return dashboardContent;
       })()}
 
-      <ManageGroupModal
-        isOpen={isGroupModalOpen}
-        onClose={() => setIsGroupModalOpen(false)}
-        group={selectedGroup}
-      />
-      <ManageLinkModal
-        isOpen={isLinkModalOpen}
-        onClose={() => setIsLinkModalOpen(false)}
-        link={selectedLink}
-        initialGroupId={targetGroupId}
-      />
+      <Suspense fallback={null}>
+        {isGroupModalOpen ? (
+          <ManageGroupModal
+            isOpen={isGroupModalOpen}
+            onClose={() => setIsGroupModalOpen(false)}
+            group={selectedGroup}
+          />
+        ) : null}
+        {isLinkModalOpen ? (
+          <ManageLinkModal
+            isOpen={isLinkModalOpen}
+            onClose={() => setIsLinkModalOpen(false)}
+            link={selectedLink}
+            initialGroupId={targetGroupId}
+          />
+        ) : null}
+      </Suspense>
     </div>
   );
 };

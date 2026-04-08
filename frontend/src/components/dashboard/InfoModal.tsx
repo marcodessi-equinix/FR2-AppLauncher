@@ -1,20 +1,27 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Edit, Save, Info } from 'lucide-react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Info, Plus, Edit, Trash2, X, Megaphone } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import type { PreferredLanguage } from '../../store/useStore';
 import api from '../../lib/api';
 import DOMPurify from 'dompurify';
 import { Button } from '../ui/button';
-import { RichTextEditor } from '../admin/RichTextEditor';
-import { cn } from '../../lib/utils';
+import { useI18n } from '../../lib/i18n';
 
 import {
   Dialog,
+  DialogClose,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '../ui/dialog';
+
+import type { InfoCard } from '../../types/infoCard';
+import { getCardTitle, getCardContent } from '../../types/infoCard';
+
+const ManageInfoCardModal = React.lazy(async () => {
+  const module = await import('../admin/ManageInfoCardModal');
+  return { default: module.ManageInfoCardModal };
+});
 
 interface InfoModalProps {
   isOpen: boolean;
@@ -22,48 +29,24 @@ interface InfoModalProps {
 }
 
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
+  const { language, t } = useI18n();
   const isAdmin = useStore((state) => state.isAdmin);
   const editMode = useStore((state) => state.editMode);
-  const preferredLanguage = useStore((state) => state.preferredLanguage);
-  const setPreferredLanguage = useStore((state) => state.setPreferredLanguage);
-  const [isEditing, setIsEditing] = useState(false);
-  const [content, setContent] = useState<{ de: string; en: string }>({ 
-    de: 'Laden...', 
-    en: 'Loading...' 
-  });
-  const [editDE, setEditDE] = useState('');
-  const [editEN, setEditEN] = useState('');
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [activeEditor, setActiveEditor] = useState<'de' | 'en' | null>(null);
-  const translateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeEditorRef = useRef<'de' | 'en' | null>(null);
-
-  const activeContent = preferredLanguage === 'de' ? content.de : content.en;
+  const [cards, setCards] = useState<InfoCard[]>([]);
+  const [editingCard, setEditingCard] = useState<InfoCard | null>(null);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    const fetchInfo = async () => {
+    const fetchCards = async () => {
       try {
-        const res = await api.get('/system/info');
-        if (res.data.content) {
-          try {
-            const parsed = JSON.parse(res.data.content);
-            if (parsed.de !== undefined && parsed.en !== undefined) {
-              setContent(parsed);
-            } else {
-              setContent({ de: res.data.content, en: '' });
-            }
-          } catch {
-            setContent({ de: res.data.content, en: 'Welcome to AppLauncher.' });
-          }
-        } else {
-          setContent({ de: 'Willkommen im AppLauncher.', en: 'Welcome to AppLauncher.' });
-        }
+        const res = await api.get('/system/info-cards');
+        setCards(res.data.cards || []);
       } catch {
-        setContent({ de: 'Willkommen im AppLauncher.', en: 'Welcome to AppLauncher.' });
+        setCards([]);
       }
     };
-    fetchInfo();
+    fetchCards();
   }, [isOpen]);
 
   const sanitizeForRender = (html: string) =>
@@ -73,246 +56,220 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
       FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'style'],
     });
 
-  const sanitizeHtml = (html: string) => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const cleanElement = (element: Element) => {
-      const classes = Array.from(element.classList);
-      const classesToRemove = classes.filter(cls => 
-        cls === 'text-white' || cls === 'text-black' || 
-        cls.startsWith('text-gray-') || cls.startsWith('text-zinc-') ||
-        cls.startsWith('text-slate-') || cls.startsWith('bg-')
-      );
-      classesToRemove.forEach(cls => element.classList.remove(cls));
-      if (element.classList.length === 0) {
-        element.removeAttribute('class');
-      }
-      Array.from(element.children).forEach(child => cleanElement(child));
-    };
-    cleanElement(div);
-    return sanitizeForRender(div.innerHTML);
-  };
+  const cardTitle = (card: InfoCard) => getCardTitle(card, language);
+  const cardContent = (card: InfoCard) => getCardContent(card, language);
 
-  const stripHtml = (html: string): string => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    return div.textContent || div.innerText || '';
-  };
-
-  const translateText = useCallback(async (text: string, fromLang: 'de' | 'en'): Promise<string | null> => {
-    const plainText = stripHtml(text).trim();
-    if (!plainText) return null;
-
+  const saveCards = async (newCards: InfoCard[]) => {
     try {
-      const langPair = fromLang === 'de' ? 'de|en' : 'en|de';
-      const encoded = encodeURIComponent(plainText.slice(0, 500));
-      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encoded}&langpair=${langPair}`);
-      const data = await res.json();
-      if (data.responseStatus === 200 && data.responseData?.translatedText) {
-        let translated = data.responseData.translatedText as string;
-        if (translated.startsWith('MYMEMORY WARNING')) return null;
-        if (text.includes('<')) {
-          translated = `<p>${translated}</p>`;
-        }
-        return translated;
+      const res = await api.post('/system/info-cards', { cards: newCards });
+      // Use the response which includes auto-translated content from backend
+      if (res.data.cards) {
+        setCards(res.data.cards);
+      } else {
+        setCards(newCards);
       }
-      return null;
     } catch {
-      return null;
-    }
-  }, []);
-
-  const scheduleTranslation = useCallback((text: string, fromLang: 'de' | 'en') => {
-    if (translateTimerRef.current) clearTimeout(translateTimerRef.current);
-    setIsTranslating(true);
-    translateTimerRef.current = setTimeout(async () => {
-      const result = await translateText(text, fromLang);
-      if (result) {
-        if (fromLang === 'de' && activeEditorRef.current === 'de') {
-          setEditEN(result);
-        } else if (fromLang === 'en' && activeEditorRef.current === 'en') {
-          setEditDE(result);
-        }
-      }
-      setIsTranslating(false);
-    }, 800);
-  }, [translateText]);
-
-  const handleEdit = () => {
-    setEditDE(content.de);
-    setEditEN(content.en);
-    setActiveEditor(null);
-    activeEditorRef.current = null;
-    setIsEditing(true);
-  };
-
-  const handleDEChange = useCallback((value: string) => {
-    setEditDE(value);
-    setActiveEditor('de');
-    activeEditorRef.current = 'de';
-    scheduleTranslation(value, 'de');
-  }, [scheduleTranslation]);
-
-  const handleENChange = useCallback((value: string) => {
-    setEditEN(value);
-    setActiveEditor('en');
-    activeEditorRef.current = 'en';
-    scheduleTranslation(value, 'en');
-  }, [scheduleTranslation]);
-
-  const handleSave = async () => {
-    try {
-      const cleanDE = sanitizeHtml(editDE);
-      const cleanEN = sanitizeHtml(editEN);
-      const newContent = { de: cleanDE, en: cleanEN };
-      await api.post('/system/info', { content: JSON.stringify(newContent) });
-      setContent(newContent);
-      setIsEditing(false);
-    } catch {
-      console.error('Failed to save info');
-      alert('Fehler beim Speichern');
+      console.error('Failed to save info cards');
     }
   };
 
-  const langOptions: { id: PreferredLanguage; label: string; flag: string }[] = [
-    { id: 'de', label: 'Deutsch', flag: 'fi fi-de' },
-    { id: 'en', label: 'English', flag: 'fi fi-us' },
-  ];
+  const handleAddCard = () => {
+    setEditingCard(null);
+    setIsCardModalOpen(true);
+  };
 
-  const handleClose = () => {
-    if (translateTimerRef.current) clearTimeout(translateTimerRef.current);
-    setActiveEditor(null);
-    setIsEditing(false);
-    onClose();
+  const handleEditCard = (card: InfoCard) => {
+    setEditingCard(card);
+    setIsCardModalOpen(true);
+  };
+
+  const handleDeleteCard = (cardId: string) => {
+    const newCards = cards.filter((c) => c.id !== cardId);
+    saveCards(newCards);
+  };
+
+  const handleSaveCard = (card: InfoCard) => {
+    let newCards: InfoCard[];
+    const idx = cards.findIndex((c) => c.id === card.id);
+    if (idx >= 0) {
+      newCards = [...cards];
+      newCards[idx] = card;
+    } else {
+      newCards = [card, ...cards];
+    }
+    saveCards(newCards);
+  };
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    } catch {
+      return iso;
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto bg-background/95 border-border p-0 rounded-2xl backdrop-blur-xl shadow-2xl">
-        <DialogHeader className="p-5 border-b border-border/50 sticky top-0 bg-background/95 z-50 backdrop-blur-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
-                <Info className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-bold text-foreground">
-                  {preferredLanguage === 'de' ? 'Systemmitteilungen' : 'System Announcements'}
-                </DialogTitle>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <p className="text-[10px] text-primary font-bold uppercase tracking-widest">
-                    {preferredLanguage === 'de' ? 'Wichtige Informationen' : 'Important Information'}
-                  </p>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="glass-card max-w-4xl overflow-hidden rounded-3xl border border-[hsl(var(--glass-border)/0.1)] bg-background/92 p-0 text-foreground shadow-2xl backdrop-blur-xl [&>button]:hidden">
+          <div className="overflow-hidden rounded-3xl">
+            {/* Header — identical style to VersionChangelogDialog */}
+            <div className="border-b border-[hsl(var(--glass-border)/0.05)] px-8 py-6">
+              <DialogHeader className="space-y-0 text-left">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.05)] text-primary/80 shadow-[0_0_20px_-12px_hsl(var(--glow)/0.45)]">
+                      <Megaphone className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-primary/80">
+                        <Info className="h-3.5 w-3.5" />
+                        {t('info.systemAnnouncements')}
+                      </div>
+                      <DialogTitle className="text-2xl font-black tracking-tight text-foreground md:text-[1.75rem]">
+                        {t('info.importantInformation')}
+                      </DialogTitle>
+                      <DialogDescription className="max-w-2xl text-sm leading-relaxed text-muted-foreground/80">
+                        {t('info.description')}
+                      </DialogDescription>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {isAdmin && editMode && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleAddCard}
+                        className="gap-1.5 rounded-xl text-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {t('info.addCard')}
+                      </Button>
+                    )}
+                    <DialogClose asChild>
+                      <button
+                        type="button"
+                        title={t('common.close')}
+                        aria-label={t('common.close')}
+                        className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </DialogClose>
+                  </div>
                 </div>
-              </div>
+              </DialogHeader>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Language toggle */}
-              {!isEditing && (
-                <div className="flex items-center rounded-lg bg-muted/50 p-0.5 border border-border/30">
-                  {langOptions.map((lang) => (
-                    <button
-                      key={lang.id}
-                      onClick={() => setPreferredLanguage(lang.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-200",
-                        preferredLanguage === lang.id
-                          ? "bg-primary/15 text-primary shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
+            {/* Cards list */}
+            <div className="max-h-[68vh] overflow-y-auto px-8 py-6 custom-scrollbar">
+              {cards.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/60">
+                  <Megaphone className="h-12 w-12 mb-4 opacity-30" />
+                  <p className="text-sm font-medium">{t('info.noCards')}</p>
+                  {isAdmin && editMode && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddCard}
+                      className="mt-4 gap-1.5 rounded-xl text-xs"
                     >
-                      <span className={cn(lang.flag, "text-sm rounded-sm overflow-hidden")} />
-                      {lang.label}
-                    </button>
+                      <Plus className="h-3.5 w-3.5" />
+                      {t('info.addFirstCard')}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {cards.map((card) => (
+                    <section
+                      key={card.id}
+                      className="rounded-[1.4rem] border border-[hsl(var(--glass-border)/0.08)] bg-[linear-gradient(180deg,hsl(var(--card)/0.58),hsl(var(--card)/0.32))] p-5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)]"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-primary/80">
+                            <Info className="h-3.5 w-3.5" />
+                            {t('info.announcement')}
+                          </div>
+                          <h3 className="text-lg font-bold tracking-tight text-foreground">
+                            {cardTitle(card)}
+                          </h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.04)] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/80">
+                            {formatDate(card.createdAt)}
+                          </span>
+                          {isAdmin && editMode && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleEditCard(card)}
+                                className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"
+                                title={t('info.editCard')}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCard(card.id)}
+                                className="p-1.5 rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                title={t('info.deleteCard')}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Card content — rich HTML */}
+                      <div className="mt-4">
+                        <div
+                          className="prose prose-sm max-w-none text-foreground/88 leading-relaxed
+                            prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
+                            prose-p:text-foreground/80 prose-p:leading-relaxed prose-p:my-1.5
+                            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                            prose-ul:text-foreground/80 prose-li:marker:text-primary/50
+                            prose-strong:text-foreground prose-strong:font-bold
+                            prose-em:text-foreground/90
+                            dark:prose-invert"
+                          dangerouslySetInnerHTML={{ __html: sanitizeForRender(cardContent(card)) }}
+                        />
+                      </div>
+                    </section>
                   ))}
                 </div>
               )}
+            </div>
 
-              {isAdmin && editMode && !isEditing && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={handleEdit}
-                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              )}
+            {/* Footer */}
+            <div className="flex justify-end border-t border-[hsl(var(--glass-border)/0.05)] px-8 py-5">
+              <Button type="button" className="rounded-xl" onClick={onClose}>
+                {t('common.close')}
+              </Button>
             </div>
           </div>
-        </DialogHeader>
-        
-        {isEditing ? (
-          /* Side-by-side editors: DE left, EN right */
-          <div className="p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* German editor — left */}
-              <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
-                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border/50">
-                  <span className="fi fi-de text-base rounded-sm overflow-hidden" />
-                  <label className="text-[10px] font-black text-foreground/80 uppercase tracking-[0.2em]">Deutsch</label>
-                  {isTranslating && activeEditor === 'en' && (
-                    <span className="text-[9px] text-primary/60 animate-pulse ml-auto">auto-translating...</span>
-                  )}
-                </div>
-                <RichTextEditor 
-                  content={editDE} 
-                  onChange={handleDEChange} 
-                  placeholder="Infos auf Deutsch..." 
-                />
-              </div>
+        </DialogContent>
+      </Dialog>
 
-              {/* English editor — right */}
-              <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
-                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border/50">
-                  <span className="fi fi-us text-base rounded-sm overflow-hidden" />
-                  <label className="text-[10px] font-black text-foreground/80 uppercase tracking-[0.2em]">English</label>
-                  {isTranslating && activeEditor === 'de' && (
-                    <span className="text-[9px] text-primary/60 animate-pulse ml-auto">auto-translating...</span>
-                  )}
-                </div>
-                <RichTextEditor 
-                  content={editEN} 
-                  onChange={handleENChange} 
-                  placeholder="Info in English..." 
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-8">
-            <div 
-              className="prose prose-base max-w-none 
-              prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
-              prose-p:text-muted-foreground prose-p:leading-relaxed
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              prose-ul:text-muted-foreground prose-li:marker:text-primary/50
-              prose-strong:text-foreground prose-strong:font-bold
-              dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: sanitizeForRender(activeContent) }}
-            />
-          </div>
+      {/* Card editor modal */}
+      <Suspense fallback={null}>
+        {isCardModalOpen && (
+          <ManageInfoCardModal
+            isOpen={isCardModalOpen}
+            onClose={() => {
+              setIsCardModalOpen(false);
+              setEditingCard(null);
+            }}
+            onSave={handleSaveCard}
+            card={editingCard}
+          />
         )}
-        
-        <DialogFooter className="p-5 border-t border-border/50 sticky bottom-0 bg-background/95 z-50 backdrop-blur-xl">
-          {isEditing ? (
-            <div className="flex w-full justify-end gap-3">
-              <Button variant="outline" onClick={() => setIsEditing(false)} className="rounded-xl px-6">
-                Abbrechen
-              </Button>
-              <Button variant="default" onClick={handleSave} className="gap-2 rounded-xl px-6 shadow-lg shadow-primary/20">
-                <Save className="h-4 w-4" /> Speichern
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={handleClose} className="w-full sm:w-auto px-6 rounded-xl">
-              {preferredLanguage === 'de' ? 'Schließen' : 'Close'}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </Suspense>
+    </>
   );
 };

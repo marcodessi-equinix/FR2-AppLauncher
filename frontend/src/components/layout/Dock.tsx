@@ -5,14 +5,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { DynamicIcon } from '../ui/DynamicIcon';
 import { cn } from '../../lib/utils';
 import { VersionChangelogDialog } from './VersionChangelogDialog';
-import { getAppVersionInfo } from '../../lib/version';
+import { useAppVersion } from '../../lib/version';
+import { useI18n } from '../../lib/i18n';
 
 export const Dock: React.FC = () => {
+  const { t } = useI18n();
   const groups = useStore((state) => state.groups);
   const activeCategory = useStore((state) => state.activeCategory);
   const setActiveCategory = useStore((state) => state.setActiveCategory);
   const favorites = useStore((state) => state.favorites);
-  const { releaseVersion, buildVersion, buildDate } = getAppVersionInfo();
+  const { releaseVersion, buildVersion, buildDate } = useAppVersion();
   const visibleVersion = buildVersion;
   const [isVersionDialogOpen, setIsVersionDialogOpen] = React.useState(false);
 
@@ -41,7 +43,7 @@ export const Dock: React.FC = () => {
         <div className="flex-1 overflow-x-auto no-scrollbar flex items-center gap-1 flex-nowrap">
           <DockItem 
             icon={LayoutGrid} 
-            label="All Apps" 
+            label={t('dock.allApps')} 
             isActive={activeCategory === 'all' || activeCategory === null}
             onClick={() => handleCategoryClick('all')}
           />
@@ -49,7 +51,7 @@ export const Dock: React.FC = () => {
           {favorites.length > 0 && (
             <DockItem 
               icon={Star} 
-              label="Favorites" 
+              label={t('dock.favorites')} 
               isActive={activeCategory === 'favorites'}
               onClick={() => handleCategoryClick('favorites')}
               className="text-amber-400 hover:text-amber-300"
@@ -83,7 +85,7 @@ export const Dock: React.FC = () => {
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={12} className="font-bold text-xs tracking-wider">
-              Versionshinweise und Build-Version anzeigen
+              {t('dock.versionNotes')}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -110,7 +112,7 @@ interface DockItemProps {
   className?: string;
 }
 
-const DockItem: React.FC<DockItemProps> = ({ icon: Icon, iconName, label, isActive, onClick, className }) => {
+const DockItem = React.memo<DockItemProps>(({ icon: Icon, iconName, label, isActive, onClick, className }) => {
   return (
     <Tooltip delayDuration={0}>
       <TooltipTrigger asChild>
@@ -118,7 +120,7 @@ const DockItem: React.FC<DockItemProps> = ({ icon: Icon, iconName, label, isActi
           onClick={onClick}
           data-active={isActive ? 'true' : 'false'}
           className={cn(
-            "dock-item relative group flex items-center justify-center h-9 min-w-[2.5rem] px-3 rounded-full transition-all duration-200 shrink-0",
+            "dock-item relative group flex items-center justify-center h-9 min-w-[2.5rem] px-3 rounded-full transition-colors duration-200 shrink-0",
             isActive 
               ? "bg-primary/12 text-foreground ring-1 ring-primary/15 shadow-[0_0_16px_-10px_hsl(var(--glow)/0.55)]" 
             : "text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--glass-highlight)/0.04)] border border-transparent dock-item-inactive",
@@ -144,4 +146,4 @@ const DockItem: React.FC<DockItemProps> = ({ icon: Icon, iconName, label, isActi
       </TooltipContent>
     </Tooltip>
   );
-};
+});

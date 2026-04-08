@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { cn } from '../lib/utils';
 
 interface SplashIntroProps {
+  onExitStart?: () => void;
   onComplete: () => void;
 }
 
@@ -16,6 +17,32 @@ interface Particle {
   decay: number;
   hue: number;
 }
+
+const SPLASH_TIMINGS = {
+  pulse: 120,
+  reveal: 360,
+  hold: 760,
+  dissolve: 980,
+  done: 1520,
+} as const;
+
+const SPLASH_STATUS_ITEMS = [
+  {
+    label: 'Connected',
+    delayClass: 'splash-status-delay-1',
+    dotClass: 'splash-status-dot-connected',
+  },
+  {
+    label: 'Secure',
+    delayClass: 'splash-status-delay-2',
+    dotClass: 'splash-status-dot-secure',
+  },
+  {
+    label: 'Ready',
+    delayClass: 'splash-status-delay-3',
+    dotClass: 'splash-status-dot-ready',
+  },
+] as const;
 
 const useParticleCanvas = (
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
@@ -64,10 +91,10 @@ const useParticleCanvas = (
 
     // Ambient particles — low rate, soft cap
     const ambientTimer = setInterval(() => {
-      if (particles.current.length < 80) {
+      if (particles.current.length < 36) {
         spawn(Math.random() * w, Math.random() * h, 1, 0.3);
       }
-    }, 140);
+    }, 240);
 
     const draw = () => {
       ctx.clearRect(0, 0, w, h);
@@ -106,28 +133,38 @@ const useParticleCanvas = (
     if (!burst || !canvasRef.current) return;
     const w = window.innerWidth;
     const h = window.innerHeight;
-    spawn(w / 2, h / 2, 60, 4);
+    spawn(w / 2, h / 2, 24, 3);
   }, [burst, canvasRef, spawn]);
 };
 
 /* ─── Main Component ─── */
-export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
+export const SplashIntro: React.FC<SplashIntroProps> = ({ onExitStart, onComplete }) => {
   type Phase = 'dark' | 'pulse' | 'reveal' | 'hold' | 'dissolve' | 'done';
   const [phase, setPhase] = useState<Phase>('dark');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [particlesEnabled] = useState(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const navigatorWithMemory = navigator as Navigator & { deviceMemory?: number };
+    const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+    const deviceMemory = navigatorWithMemory.deviceMemory ?? 4;
+    return !media.matches && hardwareConcurrency >= 4 && deviceMemory >= 4;
+  });
 
-  useParticleCanvas(canvasRef, phase !== 'done', phase === 'reveal');
+  useParticleCanvas(canvasRef, particlesEnabled && phase !== 'done', particlesEnabled && phase === 'reveal');
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase('pulse'), 300),
-      setTimeout(() => setPhase('reveal'), 1400),
-      setTimeout(() => setPhase('hold'), 2600),
-      setTimeout(() => setPhase('dissolve'), 4200),
-      setTimeout(() => { setPhase('done'); onComplete(); }, 5400),
+      setTimeout(() => setPhase('pulse'), SPLASH_TIMINGS.pulse),
+      setTimeout(() => setPhase('reveal'), SPLASH_TIMINGS.reveal),
+      setTimeout(() => setPhase('hold'), SPLASH_TIMINGS.hold),
+      setTimeout(() => {
+        setPhase('dissolve');
+        onExitStart?.();
+      }, SPLASH_TIMINGS.dissolve),
+      setTimeout(() => { setPhase('done'); onComplete(); }, SPLASH_TIMINGS.done),
     ];
     return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
+  }, [onComplete, onExitStart]);
 
   if (phase === 'done') return null;
 
@@ -137,7 +174,7 @@ export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
   return (
     <div
       className={cn(
-        'fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-[#030712] select-none',
+        'splash-shell fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden bg-[#030712] select-none',
         phase === 'dissolve' && 'splash-dissolve',
       )}
     >
@@ -147,26 +184,23 @@ export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
       {/* ── Particle canvas (GPU layer) ── */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 pointer-events-none"
+        className={cn('absolute inset-0 pointer-events-none splash-canvas', !particlesEnabled && 'hidden')}
       />
 
       {/* ── Radial glow behind logo ── */}
       <div
         className={cn(
-          'absolute w-[500px] h-[500px] rounded-full transition-all duration-[1600ms] ease-out',
+          'splash-radial-glow absolute h-[620px] w-[620px] rounded-full splash-transition-slow md:h-[760px] md:w-[760px]',
           phase === 'dark' && 'scale-0 opacity-0',
           phase === 'pulse' && 'scale-75 opacity-100 splash-glow-breathe',
           afterReveal && 'scale-100 opacity-100 splash-glow-breathe',
         )}
-        style={{
-          background: 'radial-gradient(circle, hsla(220,90%,60%,0.15) 0%, hsla(260,80%,50%,0.08) 40%, transparent 70%)',
-        }}
       />
 
       {/* ── Spinning ring ── */}
       <svg
         className={cn(
-          'absolute w-[280px] h-[280px] md:w-[340px] md:h-[340px] transition-all duration-[1200ms]',
+          'absolute h-[360px] w-[360px] splash-transition-medium md:h-[460px] md:w-[460px]',
           phase === 'dark' && 'scale-50 opacity-0',
           phase === 'pulse' && 'scale-90 opacity-60',
           afterReveal && 'scale-100 opacity-100',
@@ -204,38 +238,17 @@ export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
         {/* Logo mark */}
         <div
           className={cn(
-            'relative transition-all duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
+            'splash-transition-medium splash-ease-premium relative',
             phase === 'dark' && 'scale-50 opacity-0 blur-xl',
             phase === 'pulse' && 'scale-110 opacity-100 blur-0 splash-logo-pulse',
             afterReveal && 'scale-100 opacity-100 blur-0',
           )}
         >
-          <svg width="120" height="120" viewBox="0 0 100 100" className="drop-shadow-[0_0_40px_hsla(220,90%,60%,0.5)]">
-            <defs>
-              <linearGradient id="logo-g1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="hsl(220,90%,65%)" />
-                <stop offset="100%" stopColor="hsl(270,80%,65%)" />
-              </linearGradient>
-              <linearGradient id="logo-g2" x1="50%" y1="0%" x2="50%" y2="100%">
-                <stop offset="0%" stopColor="white" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="white" stopOpacity="0" />
-              </linearGradient>
-              <filter id="logo-glow">
-                <feGaussianBlur stdDeviation="3" result="b" />
-                <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-            {/* Arrow body */}
-            <path d="M50 8 L90 78 L50 58 L10 78 Z" fill="url(#logo-g1)" filter="url(#logo-glow)" />
-            {/* Highlight */}
-            <path d="M50 12 L86 76 L50 58 Z" fill="url(#logo-g2)" />
-            {/* Spine */}
-            <line x1="50" y1="18" x2="50" y2="54" stroke="white" strokeWidth="1.5" strokeOpacity="0.6" strokeLinecap="round" />
-            {/* Core point */}
-            <circle cx="50" cy="36" r="3" fill="white" opacity="0.7">
-              <animate attributeName="opacity" values="0.7;1;0.7" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-          </svg>
+          <img
+            src="/logo.png"
+            alt="AppLauncher"
+            className="h-[220px] w-auto object-contain drop-shadow-[0_0_52px_hsla(220,90%,60%,0.42)] md:h-[280px] lg:h-[320px]"
+          />
 
           {/* Flash on reveal */}
           {phase === 'reveal' && (
@@ -246,7 +259,7 @@ export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
         {/* Title */}
         <h1
           className={cn(
-            'mt-8 text-4xl md:text-6xl font-black text-white tracking-[0.25em] transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
+            'splash-transition-fast splash-ease-premium mt-10 text-4xl font-black tracking-[0.25em] text-white md:mt-12 md:text-6xl',
             !afterReveal && 'opacity-0 translate-y-8 blur-md',
             afterReveal && 'opacity-100 translate-y-0 blur-0',
           )}
@@ -266,11 +279,10 @@ export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
         {/* Subtitle */}
         <p
           className={cn(
-            'mt-3 text-[10px] md:text-xs font-semibold uppercase tracking-[0.5em] transition-all duration-[1000ms] delay-200',
+            'splash-subtitle splash-transition-fast mt-3 text-[10px] font-semibold uppercase tracking-[0.5em] delay-200 md:text-xs',
             !afterReveal && 'opacity-0 tracking-[1em]',
             afterReveal && 'opacity-60 tracking-[0.5em]',
           )}
-          style={{ color: 'hsl(220,80%,75%)' }}
         >
           Your apps. One place.
         </p>
@@ -283,15 +295,9 @@ export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
             afterHold && 'opacity-100 scale-100',
           )}
         >
-          {['Connected', 'Secure', 'Ready'].map((label, i) => (
-            <div key={label} className="flex items-center gap-1.5" style={{ transitionDelay: `${600 + i * 150}ms` }}>
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{
-                  backgroundColor: i === 0 ? '#60a5fa' : i === 1 ? '#34d399' : '#c084fc',
-                  boxShadow: `0 0 8px ${i === 0 ? '#60a5fa' : i === 1 ? '#34d399' : '#c084fc'}`,
-                }}
-              />
+          {SPLASH_STATUS_ITEMS.map(({ label, delayClass, dotClass }) => (
+            <div key={label} className={cn('flex items-center gap-1.5 splash-status-item', delayClass)}>
+              <span className={cn('h-1.5 w-1.5 rounded-full', dotClass)} />
               <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/40">
                 {label}
               </span>
@@ -303,26 +309,19 @@ export const SplashIntro: React.FC<SplashIntroProps> = ({ onComplete }) => {
         <div className="mt-6 w-44 h-[2px] rounded-full overflow-hidden bg-white/[0.06]">
           <div
             className={cn(
-              'h-full rounded-full transition-all ease-linear',
+              'splash-loading-fill h-full rounded-full',
               phase === 'dark' && 'w-0',
               phase === 'pulse' && 'w-1/4',
               phase === 'reveal' && 'w-2/3',
               phase === 'hold' && 'w-[92%]',
               phase === 'dissolve' && 'w-full',
             )}
-            style={{
-              background: 'linear-gradient(90deg, hsl(220,90%,60%), hsl(270,80%,65%), hsl(220,90%,60%))',
-              backgroundSize: '200% 100%',
-              animation: 'splash-bar-shimmer 1.5s linear infinite',
-              boxShadow: '0 0 12px hsla(220,90%,60%,0.6)',
-              transitionDuration: phase === 'dissolve' ? '800ms' : '1200ms',
-            }}
           />
         </div>
       </div>
 
       {/* ── Vignette ── */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(3,7,18,0.7) 100%)' }} />
+      <div className="splash-vignette absolute inset-0 pointer-events-none" />
     </div>
   );
 };

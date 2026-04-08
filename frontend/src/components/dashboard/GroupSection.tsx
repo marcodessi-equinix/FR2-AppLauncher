@@ -13,6 +13,7 @@ import { Link, Group } from '../../types';
 import { Button } from '../ui/button';
 import { Plus, Edit, Trash2, GripVertical } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useI18n } from '../../lib/i18n';
 
 interface GroupSectionProps {
   group: Group;
@@ -88,6 +89,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
   onDeleteLink,
   dragListeners
 }) => {
+  const { t } = useI18n();
   const { setNodeRef, active, isOver } = useDroppable({
     id: `group-droppable-${group.id}`,
     data: { groupId: group.id }
@@ -122,7 +124,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
     <section 
       ref={setNodeRef}
       className={cn(
-        "group-section relative flex flex-col gap-5 rounded-[28px] border border-[hsl(var(--glass-border)/0.07)] bg-[linear-gradient(180deg,hsl(var(--card)/0.62),hsl(var(--card)/0.34))] p-5 md:p-6 transition-all duration-300",
+        "group-section relative flex flex-col gap-5 rounded-[28px] border border-[hsl(var(--glass-border)/0.07)] bg-[linear-gradient(180deg,hsl(var(--card)/0.62),hsl(var(--card)/0.34))] p-5 md:p-6 transition-[opacity,box-shadow,border-color,background-color,ring-color] duration-300",
         active?.id === `group-droppable-${group.id}` && "opacity-50",
         isOver && active && String(active.id).startsWith('link-') && "ring-2 ring-primary/40 bg-primary/5 border-primary/30"
       )}
@@ -160,7 +162,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
              <div className="w-px h-4 bg-border/50 mx-1" />
              <Button variant="outline" size="sm" className="h-7 gap-1.5 text-[10px] font-medium" onClick={() => onAddLink(group.id)}>
                <Plus className="h-3 w-3" />
-               Link
+               {t('dashboard.link')}
              </Button>
           </div>
         )}
@@ -172,7 +174,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
         filteredLinks.length === 0 && "flex items-center justify-center text-muted-foreground border-dashed border rounded-lg border-muted h-[80px]"
       )}>
         {filteredLinks.length === 0 ? (
-           <p className="text-xs font-medium">No links in this group</p>
+           <p className="text-xs font-medium">{t('dashboard.noLinksInGroup')}</p>
         ) : (
           <>
             {editMode && isAdmin ? (

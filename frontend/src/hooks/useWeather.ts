@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ComponentType, SVGProps } from 'react';
+import { getLocale, translate, useI18n } from '../lib/i18n';
+import type { PreferredLanguage } from '../store/useStore';
 import { 
   SunIcon, 
   MoonIcon,
@@ -76,21 +78,22 @@ export interface WeatherData {
 }
 
 // WMO Weather interpretation codes – isDay switches between day and night icons
-const getWeatherIconAndDesc = (code: number, isDay = true) => {
-  if (code === 0) return { icon: isDay ? SunIcon : MoonIcon, desc: isDay ? 'Sonnig' : 'Klar', color: '' };
-  if (code === 1) return { icon: isDay ? SunIcon : NightCloudIcon, desc: 'Meist klar', color: '' };
-  if (code === 2 || code === 3) return { icon: isDay ? CloudIcon : NightCloudIcon, desc: 'Bewölkt', color: '' };
-  if (code === 45 || code === 48) return { icon: CloudFogIcon, desc: 'Neblig', color: '' };
-  if (code >= 51 && code <= 55) return { icon: CloudDrizzleIcon, desc: 'Nieselregen', color: '' };
-  if (code >= 61 && code <= 65) return { icon: CloudRainIcon, desc: 'Regen', color: '' };
-  if (code >= 71 && code <= 77) return { icon: CloudSnowIcon, desc: 'Schnee', color: '' };
-  if (code >= 80 && code <= 82) return { icon: CloudRainIcon, desc: 'Schauer', color: '' };
-  if (code >= 85 && code <= 86) return { icon: CloudSnowIcon, desc: 'Schneeschauer', color: '' };
-  if (code >= 95 && code <= 99) return { icon: CloudLightningIcon, desc: 'Gewitter', color: '' };
-  return { icon: UnknownIcon, desc: 'Unbekannt', color: '' };
+const getWeatherIconAndDesc = (code: number, language: PreferredLanguage, isDay = true) => {
+  if (code === 0) return { icon: isDay ? SunIcon : MoonIcon, desc: translate(language, isDay ? 'weather.sunny' : 'weather.clear'), color: '' };
+  if (code === 1) return { icon: isDay ? SunIcon : NightCloudIcon, desc: translate(language, 'weather.mostlyClear'), color: '' };
+  if (code === 2 || code === 3) return { icon: isDay ? CloudIcon : NightCloudIcon, desc: translate(language, 'weather.cloudy'), color: '' };
+  if (code === 45 || code === 48) return { icon: CloudFogIcon, desc: translate(language, 'weather.foggy'), color: '' };
+  if (code >= 51 && code <= 55) return { icon: CloudDrizzleIcon, desc: translate(language, 'weather.drizzle'), color: '' };
+  if (code >= 61 && code <= 65) return { icon: CloudRainIcon, desc: translate(language, 'weather.rain'), color: '' };
+  if (code >= 71 && code <= 77) return { icon: CloudSnowIcon, desc: translate(language, 'weather.snow'), color: '' };
+  if (code >= 80 && code <= 82) return { icon: CloudRainIcon, desc: translate(language, 'weather.showers'), color: '' };
+  if (code >= 85 && code <= 86) return { icon: CloudSnowIcon, desc: translate(language, 'weather.snowShowers'), color: '' };
+  if (code >= 95 && code <= 99) return { icon: CloudLightningIcon, desc: translate(language, 'weather.thunderstorm'), color: '' };
+  return { icon: UnknownIcon, desc: translate(language, 'weather.unknown'), color: '' };
 };
 
 export const useWeather = () => {
+  const { language } = useI18n();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,11 +116,12 @@ export const useWeather = () => {
       if (!res.ok) throw new Error('Failed to fetch weather data');
       
       const data = await res.json() as WeatherApiResponse;
+      const locale = getLocale(language);
       
       // Parse Current — use is_day flag for correct icon
       const currentCode = data.current.weather_code;
       const currentIsDay = data.current.is_day === 1;
-      const currentInfo = getWeatherIconAndDesc(currentCode, currentIsDay);
+      const currentInfo = getWeatherIconAndDesc(currentCode, language, currentIsDay);
 
       // Parse Timeline — find the actual hour index for today's date
       // Open-Meteo hourly arrays start at hour 0 of the first day, so we need
@@ -136,6 +140,7 @@ export const useWeather = () => {
           temp: Math.round(data.hourly.temperature_2m[idx] ?? data.hourly.temperature_2m[hour]),
           icon: getWeatherIconAndDesc(
             data.hourly.weather_code[idx] ?? data.hourly.weather_code[hour],
+            language,
             (data.hourly.is_day[idx] ?? (hour >= 6 && hour < 20) ? 1 : 0) === 1
           ).icon,
         };
@@ -156,9 +161,9 @@ export const useWeather = () => {
       // Parse 7-Day Forecast — day icons always use day=true (daytime representative)
       const forecast = data.daily.time.map((dateStr: string, idx: number) => {
         const date = new Date(dateStr);
-        const dayName = date.toLocaleDateString('de-DE', { weekday: 'short' });
+        const dayName = date.toLocaleDateString(locale, { weekday: 'short' });
         const code = data.daily.weather_code[idx];
-        const info = getWeatherIconAndDesc(code, true); // daily = daytime icon
+        const info = getWeatherIconAndDesc(code, language, true); // daily = daytime icon
         
         return {
           day: dayName,
@@ -175,7 +180,7 @@ export const useWeather = () => {
       // Format sunrise/sunset for today
       const formatTime = (isoStr: string | undefined) => {
         if (!isoStr) return '--';
-        return new Date(isoStr).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        return new Date(isoStr).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
       };
 
       setWeather({
@@ -212,7 +217,7 @@ export const useWeather = () => {
     // Auto-refresh every 30 mins
     const interval = setInterval(fetchWeather, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [language]);
 
   return { weather, loading, error };
 };

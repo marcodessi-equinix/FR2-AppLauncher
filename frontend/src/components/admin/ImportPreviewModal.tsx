@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils';
 import { executeImport, ImportPreviewData, ParsedGroup, ParsedLink } from '../../lib/api';
 import { useStore } from '../../store/useStore';
 import { useQueryClient } from '@tanstack/react-query';
+import { useI18n } from '../../lib/i18n';
 import {
   DndContext,
   DragOverlay,
@@ -44,6 +45,7 @@ interface ImportPreviewModalProps {
 
 // --- Draggable Link Component ---
 const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }: { link: UILink; group: UIGroup; onSelect?: () => void; onDelete?: () => void; isGhosted?: boolean }) => {
+    const { t } = useI18n();
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: link.id,
@@ -88,8 +90,8 @@ const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }
             {/* Selection Checkbox */}
             <input 
                 type="checkbox" 
-                title={`Select link ${link.title}`}
-                aria-label={`Select link ${link.title}`}
+                title={t('import.selectLink', { title: link.title })}
+                aria-label={t('import.selectLink', { title: link.title })}
                 checked={!!link.selected} 
                 onClick={(e) => e.stopPropagation()}
                 onChange={(e) => {
@@ -112,9 +114,9 @@ const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }
                 <div className="flex items-center gap-1.5">
                     <span className="text-[11px] font-semibold truncate text-foreground/90">{link.title}</span>
                     {link.isDuplicate && (
-                        <span title="Bereits in der App vorhanden" className="inline-flex items-center gap-0.5 text-[8px] font-bold text-amber-400 bg-amber-400/15 border border-amber-400/25 px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wider">
+                        <span title={t('import.duplicateExists')} className="inline-flex items-center gap-0.5 text-[8px] font-bold text-amber-400 bg-amber-400/15 border border-amber-400/25 px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wider">
                             <AlertTriangle className="h-2 w-2" />
-                            Duplikat
+                            {t('import.duplicate')}
                         </span>
                     )}
                 </div>
@@ -124,8 +126,8 @@ const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }
             {group.isTarget && (
                 <button
                     type="button"
-                    title={`Remove link ${link.title}`}
-                    aria-label={`Remove link ${link.title}`}
+                    title={t('import.removeLink', { title: link.title })}
+                    aria-label={t('import.removeLink', { title: link.title })}
                     className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/20"
                     onClick={(e) => {
                         e.stopPropagation();
@@ -141,6 +143,7 @@ const DraggableLink = React.memo(({ link, group, onSelect, onDelete, isGhosted }
 
 // --- Droppable Group Component ---
 const DroppableGroup = React.memo(({ group, children, onToggle, isSource, onSelectGroup }: { group: UIGroup; children: React.ReactNode, onToggle: () => void, isSource?: boolean, onSelectGroup?: () => void }) => {
+    const { t } = useI18n();
     const { setNodeRef, isOver } = useDroppable({
         id: group.id,
         data: { group }
@@ -171,8 +174,8 @@ const DroppableGroup = React.memo(({ group, children, onToggle, isSource, onSele
                 
                 <input 
                     type="checkbox"
-                    title={`Select group ${group.title}`}
-                    aria-label={`Select group ${group.title}`}
+                    title={t('import.selectGroup', { title: group.title })}
+                    aria-label={t('import.selectGroup', { title: group.title })}
                     checked={allSelected}
                     ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
                     onChange={(e) => {
@@ -210,7 +213,7 @@ const DroppableGroup = React.memo(({ group, children, onToggle, isSource, onSele
                     {group.links.length === 0 && (
                         <div className="flex items-center justify-center gap-2 py-4 border border-dashed border-white/[0.08] rounded-lg mx-1">
                             <div className="h-px flex-1 bg-white/[0.05]" />
-                            <span className="text-[10px] text-muted-foreground/30 font-medium">Hierher ziehen</span>
+                            <span className="text-[10px] text-muted-foreground/30 font-medium">{t('import.dragHere')}</span>
                             <div className="h-px flex-1 bg-white/[0.05]" />
                         </div>
                     )}
@@ -221,6 +224,7 @@ const DroppableGroup = React.memo(({ group, children, onToggle, isSource, onSele
 });
 
 export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, onClose, data }) => {
+    const { t } = useI18n();
     const currentGroups = useStore((state) => state.groups);
     const queryClient = useQueryClient();
     const [sourceGroups, setSourceGroups] = React.useState<UIGroup[]>([]);
@@ -239,7 +243,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
 
     // New Folder Dialog State
     const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
-    const [newFolderName, setNewFolderName] = useState("Neuer Ordner");
+    const [newFolderName, setNewFolderName] = useState(t('import.newFolderDefaultName'));
 
     // Prevent background scroll while modal is open
     useEffect(() => {
@@ -483,7 +487,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
             setTargetGroups(prev => [newGroup, ...prev]);
         }
         setIsNewFolderOpen(false);
-        setNewFolderName("Neuer Ordner");
+        setNewFolderName(t('import.newFolderDefaultName'));
     };
     
     const handleBulkMoveRight = () => {
@@ -567,14 +571,14 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
             };
 
             await executeImport(finalData, false);
-            setSuccessMessage('AppLauncher erfolgreich aktualisiert!');
+            setSuccessMessage(t('import.success'));
         } catch (error: unknown) {
             console.error(error);
-            const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            const message = error instanceof Error ? error.message : t('import.errorUnknown');
             if (message.includes('413')) {
-                setErrorMessage('Die Import-Datei ist zu groß. Bitte weniger Lesezeichen auf einmal importieren oder eine kleinere Datei verwenden.');
+                setErrorMessage(t('import.errorTooLarge'));
             } else {
-                setErrorMessage('Fehler beim Speichern: ' + message);
+                setErrorMessage(t('import.errorSaving', { message }));
             }
         } finally {
             setIsSubmitting(false);
@@ -624,9 +628,9 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                                 </div>
                             </div>
                             <div>
-                                <h2 className="text-base font-bold text-foreground tracking-tight">Bookmark Import Manager</h2>
+                                <h2 className="text-base font-bold text-foreground tracking-tight">{t('import.managerTitle')}</h2>
                                 <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                                    Wähle Lesezeichen aus und verschiebe sie in den AppLauncher
+                                    {t('import.managerSubtitle')}
                                 </p>
                             </div>
                         </div>
@@ -635,21 +639,21 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                         <div className="flex items-center gap-2 mr-4 relative">
                             <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.07] rounded-full px-3 py-1">
                                 <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-                                <span className="text-[10px] font-semibold text-muted-foreground">{totalSourceLinks} gefunden</span>
+                                <span className="text-[10px] font-semibold text-muted-foreground">{t('import.foundCount', { count: totalSourceLinks })}</span>
                             </div>
                             {totalDuplicates > 0 && (
                                 <div className="flex items-center gap-1.5 bg-amber-400/10 border border-amber-400/20 rounded-full px-3 py-1">
                                     <AlertTriangle className="h-2.5 w-2.5 text-amber-400" />
-                                    <span className="text-[10px] font-semibold text-amber-400">{totalDuplicates} Duplikate</span>
+                                    <span className="text-[10px] font-semibold text-amber-400">{t('import.duplicatesCount', { count: totalDuplicates })}</span>
                                 </div>
                             )}
                             <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1">
                                 <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                                <span className="text-[10px] font-semibold text-primary">{totalTargetLinks} im Launcher</span>
+                                <span className="text-[10px] font-semibold text-primary">{t('import.inLauncherCount', { count: totalTargetLinks })}</span>
                             </div>
                         </div>
 
-                        <Button variant="ghost" size="icon" onClick={onClose} title="Close import preview" aria-label="Close import preview" className="relative rounded-xl hover:bg-white/5 shrink-0">
+                        <Button variant="ghost" size="icon" onClick={onClose} title={t('import.closeImportPreview')} aria-label={t('import.closeImportPreview')} className="relative rounded-xl hover:bg-white/5 shrink-0">
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
@@ -663,10 +667,10 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                             <div className="px-4 py-2.5 border-b border-white/[0.05] bg-white/[0.015] flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-2">
                                     <div className="h-4 w-0.5 bg-muted-foreground/30 rounded-full" />
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">Importierte Datei</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">{t('import.importedFile')}</span>
                                 </div>
                                 <span className="text-[11px] font-semibold text-muted-foreground/50 tabular-nums">
-                                    {sourceGroups.length} Ordner
+                                    {t('import.folderCount', { count: sourceGroups.length })}
                                 </span>
                             </div>
                             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar space-y-0">
@@ -708,7 +712,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                                 )}
                                 onClick={handleBulkMoveRight}
                                 disabled={sourceSelectedCount === 0}
-                                title={sourceSelectedCount > 0 ? `${sourceSelectedCount} importieren` : "Links links auswählen"}
+                                title={sourceSelectedCount > 0 ? t('import.importSelected', { count: sourceSelectedCount }) : t('import.selectLinksLeft')}
                             >
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
@@ -736,7 +740,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                                     onClick={() => setIsNewFolderOpen(true)}
                                 >
                                     <Plus className="h-3 w-3" />
-                                    Ordner
+                                    {t('import.newFolder')}
                                 </Button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
@@ -766,11 +770,11 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                     {/* ── Footer ── */}
                     <div className="px-6 py-3.5 border-t border-white/[0.07] bg-black/[0.1] flex items-center justify-between shrink-0">
                         <div className="text-[10px] text-muted-foreground/40">
-                            {totalTargetLinks > 0 ? `${totalTargetLinks} Links werden gespeichert` : 'Keine Links ausgewählt'}
+                            {totalTargetLinks > 0 ? t('import.selectedLinksWillBeSaved', { count: totalTargetLinks }) : t('import.noLinksSelected')}
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="h-8 text-xs font-semibold px-4 hover:bg-white/5">
-                                Abbrechen
+                                {t('common.cancel')}
                             </Button>
                             <Button 
                                 onClick={handleSave} 
@@ -783,9 +787,9 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                                         </svg>
-                                        Speichere...
+                                        {t('import.saving')}
                                     </span>
-                                ) : 'AppLauncher Update'}
+                                ) : t('import.updateAppLauncher')}
                             </Button>
                         </div>
                     </div>
@@ -796,10 +800,10 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2 text-amber-400">
                                     <AlertTriangle className="h-5 w-5" />
-                                    Bereits vorhandene Links
+                                    {t('import.duplicateLinksTitle')}
                                 </DialogTitle>
                                 <DialogDescription>
-                                    Die folgenden {pendingDuplicates.length} Links sind bereits in der App vorhanden. Möchtest du sie trotzdem nochmal hinzufügen?
+                                    {t('import.duplicateLinksDescription', { count: pendingDuplicates.length })}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3">
@@ -815,13 +819,13 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                             </div>
                             <DialogFooter className="gap-2">
                                 <Button variant="ghost" onClick={() => setIsDuplicateConfirmOpen(false)}>
-                                    Nochmal bearbeiten
+                                    {t('import.reviewAgain')}
                                 </Button>
                                 <Button
                                     className="bg-amber-500 hover:bg-amber-600 text-white"
                                     onClick={() => { setIsDuplicateConfirmOpen(false); doSave(); }}
                                 >
-                                    Trotzdem hinzufügen
+                                    {t('import.addAnyway')}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -831,9 +835,9 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                     <Dialog open={isNewFolderOpen} onOpenChange={setIsNewFolderOpen}>
                         <DialogContent className="sm:max-w-md">
                             <DialogHeader>
-                                <DialogTitle>Neuen Ordner erstellen</DialogTitle>
+                                <DialogTitle>{t('import.createFolderTitle')}</DialogTitle>
                                 <DialogDescription>
-                                    Erstelle einen neuen Ordner im AppLauncher.
+                                    {t('import.createFolderDescription')}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="flex items-center space-x-2">
@@ -848,10 +852,10 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                             </div>
                             <DialogFooter className="sm:justify-start">
                                 <Button type="button" variant="secondary" onClick={() => setIsNewFolderOpen(false)}>
-                                    Abbrechen
+                                    {t('common.cancel')}
                                 </Button>
                                 <Button type="button" onClick={confirmCreateFolder}>
-                                    Erstellen
+                                    {t('import.create')}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -865,8 +869,8 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                         <LinkIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                         <span className="text-[11px] font-bold truncate text-foreground">
                             {activeDragData && activeDragData.selectedCount > 1
-                                ? `${activeDragData.selectedCount} Links verschieben`
-                                : 'Link verschieben'}
+                                ? t('import.moveLinksCount', { count: activeDragData.selectedCount })
+                                : t('import.moveLink')}
                         </span>
                     </div>
                  ) : null}
@@ -881,7 +885,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                                 <div className="absolute inset-0 bg-emerald-400/20 rounded-full blur-md" />
                                 <CheckCircle2 className="relative h-6 w-6" />
                             </div>
-                            Import erfolgreich
+                            {t('import.importSuccess')}
                         </DialogTitle>
                         <DialogDescription className="text-sm text-foreground/70 pt-1">
                             {successMessage}
@@ -911,7 +915,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                                 <div className="absolute inset-0 bg-destructive/20 rounded-full blur-md" />
                                 <XCircle className="relative h-6 w-6" />
                             </div>
-                            Fehler beim Import
+                            {t('import.importError')}
                         </DialogTitle>
                         <DialogDescription className="text-sm text-foreground/70 pt-1">
                             {errorMessage}
@@ -919,7 +923,7 @@ export const ImportPreviewModal: React.FC<ImportPreviewModalProps> = ({ isOpen, 
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setErrorMessage(null)} className="w-full">
-                            Schließen
+                            {t('common.close')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

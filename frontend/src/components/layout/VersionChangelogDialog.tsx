@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { APP_CHANGELOG } from '../../lib/changelog';
+import { getAppChangelog } from '../../lib/changelog';
+import { useI18n } from '../../lib/i18n';
 
 interface VersionChangelogDialogProps {
   isOpen: boolean;
@@ -28,9 +29,11 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
   releaseVersion,
   buildDate,
 }) => {
+  const { language, t } = useI18n();
+  const changelogEntries = React.useMemo(() => getAppChangelog(language), [language]);
   const versionDescription = buildVersion === releaseVersion
-    ? `Release-Stand: ${releaseVersion}. Die Versionshistorie unten pflegst du nur für größere Updates manuell. Build-Datum: ${buildDate}`
-    : `Release-Stand: ${releaseVersion}. Build-Stand: ${buildVersion}. Die Versionshistorie unten pflegst du nur für größere Updates manuell. Build-Datum: ${buildDate}`;
+    ? t('version.descriptionReleaseOnly', { releaseVersion, buildDate })
+    : t('version.descriptionWithBuild', { releaseVersion, buildVersion, buildDate });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -46,7 +49,7 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-primary/80">
                       <History className="h-3.5 w-3.5" />
-                      Release Notes
+                      {t('version.releaseNotes')}
                     </div>
                     <DialogTitle className="text-2xl font-black tracking-tight text-foreground md:text-[1.75rem]">
                       {currentVersion}
@@ -60,8 +63,8 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
                 <DialogClose asChild>
                   <button
                     type="button"
-                    title="Versionsfenster schließen"
-                    aria-label="Versionsfenster schließen"
+                    title={t('version.closeWindow')}
+                    aria-label={t('version.closeWindow')}
                     className="p-2 hover:bg-[hsl(var(--glass-highlight)/0.05)] rounded-xl transition-colors text-muted-foreground hover:text-foreground active:scale-90"
                   >
                     <X className="h-5 w-5" />
@@ -73,7 +76,7 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
 
           <div className="max-h-[68vh] overflow-y-auto px-8 py-6 custom-scrollbar">
             <div className="space-y-4">
-              {APP_CHANGELOG.map((entry) => (
+              {changelogEntries.map((entry) => (
                 <section
                   key={`${entry.version}-${entry.date}`}
                   className="rounded-[1.4rem] border border-[hsl(var(--glass-border)/0.08)] bg-[linear-gradient(180deg,hsl(var(--card)/0.58),hsl(var(--card)/0.32))] p-5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)]"
@@ -108,7 +111,7 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
 
           <div className="flex justify-end border-t border-[hsl(var(--glass-border)/0.05)] px-8 py-5">
             <Button type="button" className="rounded-xl" onClick={() => onOpenChange(false)}>
-              Schließen
+              {t('version.close')}
             </Button>
           </div>
         </div>

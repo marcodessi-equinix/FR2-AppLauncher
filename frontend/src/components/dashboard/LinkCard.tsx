@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from '../ui/tooltip';
 import { cn } from '../../lib/utils';
+import { useI18n } from '../../lib/i18n';
 
 export interface LinkCardProps {
   link: Link;
@@ -28,6 +29,7 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
   onEdit, 
   onDelete
 }) => {
+  const { t } = useI18n();
   const isFavorite = useStore((state) => state.favorites.includes(link.id));
   const toggleFavorite = useStore((state) => state.toggleFavorite);
   const hostname = React.useMemo(() => {
@@ -79,7 +81,7 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
       tabIndex={0}
       className={cn(
         "link-card group relative flex h-full w-full cursor-pointer flex-col justify-between p-5",
-        "transition-all duration-200 ease-out",
+        "transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out",
         "hover:-translate-y-1 hover:shadow-[0_18px_30px_-18px_hsl(var(--glow)/0.28)]",
         "hover:border-primary/25 hover:bg-[hsl(var(--glass-highlight)/0.05)]",
         "focus-within:ring-2 focus-within:ring-primary/30 focus-within:outline-none",
@@ -107,7 +109,7 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
               ? "text-amber-400 opacity-100 hover:scale-110 drop-shadow-[0_0_4px_rgba(251,191,36,0.5)]" 
               : "text-muted-foreground/10 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-400/10"
           )}
-          title={isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+          title={isFavorite ? t('linkCard.removeFromFavorites') : t('linkCard.addToFavorites')}
         >
           <Star className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
         </button>
@@ -148,7 +150,7 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
             </TooltipContent>
           </Tooltip>
           <span className="text-primary/0 transition-colors duration-200 group-hover:text-primary/75">
-            {editMode && isAdmin ? 'Edit' : 'Open'}
+            {editMode && isAdmin ? t('common.edit') : t('common.open')}
           </span>
         </div>
       </div>

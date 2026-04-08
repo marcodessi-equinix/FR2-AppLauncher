@@ -8,10 +8,19 @@ router.get('/data', (req, res) => {
     const groups = db.prepare('SELECT * FROM groups ORDER BY "order" ASC').all() as any[];
     const links = db.prepare('SELECT * FROM links ORDER BY "order" ASC').all() as any[];
 
-    // Map links to groups
+    const linksByGroup = new Map<number, any[]>();
+    for (const link of links) {
+      const groupLinks = linksByGroup.get(link.group_id);
+      if (groupLinks) {
+        groupLinks.push(link);
+      } else {
+        linksByGroup.set(link.group_id, [link]);
+      }
+    }
+
     const groupsWithLinks = groups.map(group => ({
       ...group,
-      links: links.filter(link => link.group_id === group.id)
+      links: linksByGroup.get(group.id) ?? []
     }));
 
     res.json(groupsWithLinks);

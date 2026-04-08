@@ -148,18 +148,48 @@ const resolveBuildNumber = (releaseVersion: string): string => {
   return resolveGitBuildNumber(releaseVersion) || resolveContentBuildNumber()
 }
 
-const resolvedAppVersion = process.env.VITE_APP_VERSION || `v${resolvePackageVersion()}`
-const resolvedBuildNumber = resolveBuildNumber(resolvedAppVersion)
-const resolvedBuildVersion = createDisplayBuildVersion(resolvedAppVersion, resolvedBuildNumber)
-const resolvedBuildDate = new Date().toISOString().slice(0, 10)
+function buildMetaPlugin(): import('vite').Plugin {
+  const virtualModuleId = 'virtual:build-meta'
+  const resolvedId = '\0' + virtualModuleId
+
+  const computeMeta = () => {
+    const appVersion = process.env.VITE_APP_VERSION || `v${resolvePackageVersion()}`
+    const buildNumber = resolveBuildNumber(appVersion)
+    const buildVersion = createDisplayBuildVersion(appVersion, buildNumber)
+    const now = new Date()
+    const buildDate = now.toISOString().slice(0, 10)
+    const buildTime = now.toISOString().slice(11, 19)
+    return { appVersion, buildVersion, buildDate, buildTime }
+  }
+
+  return {
+    name: 'build-meta',
+    resolveId(id) {
+      if (id === virtualModuleId) return resolvedId
+    },
+    load(id) {
+      if (id === resolvedId) {
+        const meta = computeMeta()
+        return [
+          `export const buildMeta = ${JSON.stringify(meta)};`,
+          `if (import.meta.hot) {`,
+          `  import.meta.hot.on('build-meta:update', (data) => {`,
+          `    Object.assign(buildMeta, data);`,
+          `    window.dispatchEvent(new CustomEvent('build-meta:update', { detail: data }));`,
+          `  });`,
+          `}`,
+        ].join('\n')
+      }
+    },
+    handleHotUpdate({ server }) {
+      const meta = computeMeta()
+      server.hot.send('build-meta:update', meta)
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [react()],
-  define: {
-    __APP_VERSION__: JSON.stringify(resolvedAppVersion),
-    __APP_BUILD_VERSION__: JSON.stringify(resolvedBuildVersion),
-    __BUILD_DATE__: JSON.stringify(resolvedBuildDate),
-  },
+  plugins: [buildMetaPlugin(), react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import { requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
@@ -141,15 +142,15 @@ router.post(['/', '/icon'], requireAdmin, upload.single('file'), (req, res) => {
   }
 });
 
-router.get('/', requireAdmin, (req, res) => {
+router.get('/', requireAdmin, async (req, res) => {
   try {
     const metadata = readIconMetadata();
-    const files = fs.readdirSync(uploadDir);
-    const icons = files
+    const files = await fsPromises.readdir(uploadDir);
+    const iconPromises = files
       .filter((file) => allowedExtensions.has(path.extname(file).toLowerCase()))
-      .map((file) => {
+      .map(async (file) => {
         const filePath = path.join(uploadDir, file);
-        const stat = fs.statSync(filePath);
+        const stat = await fsPromises.stat(filePath);
         const fileMetadata = metadata[file];
 
         return {
@@ -159,7 +160,9 @@ router.get('/', requireAdmin, (req, res) => {
           displayName: fileMetadata?.displayName || getFallbackDisplayName(file),
           uploadedAt: fileMetadata?.uploadedAt || stat.mtimeMs
         };
-      })
+      });
+
+    const icons = (await Promise.all(iconPromises))
       .sort((left, right) => right.uploadedAt - left.uploadedAt)
       .map(({ uploadedAt, ...icon }) => icon);
 

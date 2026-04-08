@@ -97,12 +97,7 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  html.theme-switching *,
-  html.theme-switching *::before,
-  html.theme-switching *::after {
-    transition: none !important;
-    animation: none !important;
-  }
+
 
   html[data-theme="light"] body {
     background-image:
@@ -229,6 +224,8 @@
 
   .dock-bar {
     box-shadow: 0 -20px 48px -32px hsl(0 0% 0% / 0.85);
+    will-change: transform;
+    contain: layout style;
   }
 
   [data-theme="light"] .dock-bar {
@@ -277,6 +274,7 @@
     box-shadow:
       inset 0 1px 0 hsl(var(--glass-highlight) / 0.04),
       0 24px 48px -36px hsl(0 0% 0% / 0.85);
+    contain: layout style;
   }
 
   [data-theme="light"] .group-section {
@@ -289,11 +287,18 @@
 
   .app-header {
     box-shadow: 0 16px 40px -30px hsl(0 0% 0% / 0.75);
+    will-change: transform;
+    contain: layout style;
+  }
+
+  .app-main {
+    contain: paint;
   }
 
   .link-card {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
+    contain: layout style;
   }
 
   .header-weather-icon,
@@ -312,6 +317,31 @@
   .brand-lockup {
     position: relative;
   }
+
+  .header-subtitle-stack {
+    display: grid;
+    max-width: min(32ch, 100%);
+  }
+
+  .header-subtitle-stack > * {
+    grid-area: 1 / 1;
+  }
+
+  .header-subtitle-reserve {
+    visibility: hidden;
+    pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .header-subtitle-current {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+
 
   .telemetry-shell,
   .toolbar-shell {
@@ -339,6 +369,7 @@
 
   [data-theme="light"] .app-main {
     background: linear-gradient(180deg, hsl(212 18% 89% / 0.55), hsl(214 16% 84% / 0.32));
+    contain: paint;
   }
 
   [data-theme="light"] .favorites-panel {
@@ -387,12 +418,100 @@
 
 /* Dissolve out: blur + scale + fade */
 .splash-dissolve {
-  animation: splash-dissolve 1.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: splash-dissolve 0.56s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes splash-dissolve {
-  0%   { opacity: 1; filter: blur(0) brightness(1);   transform: scale(1); }
-  40%  { opacity: 1; filter: blur(4px) brightness(1.3); transform: scale(1.02); }
-  100% { opacity: 0; filter: blur(40px) brightness(0.6); transform: scale(1.08); }
+  0%   { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+  55%  { opacity: 0.78; filter: blur(6px) brightness(1.08); transform: scale(1.01); }
+  100% { opacity: 0; filter: blur(18px) brightness(0.92); transform: scale(1.03); }
+}
+
+.splash-shell {
+  contain: layout paint style;
+}
+
+.splash-canvas {
+  opacity: 0.82;
+}
+
+.splash-radial-glow {
+  background: radial-gradient(circle, hsla(220, 90%, 60%, 0.15) 0%, hsla(260, 80%, 50%, 0.08) 40%, transparent 70%);
+}
+
+.splash-transition-slow {
+  transition:
+    transform 680ms ease-out,
+    opacity 680ms ease-out,
+    filter 680ms ease-out;
+  will-change: transform, opacity, filter;
+}
+
+.splash-transition-medium {
+  transition:
+    transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity, filter;
+}
+
+.splash-transition-fast {
+  transition:
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    letter-spacing 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity, filter;
+}
+
+.splash-ease-premium {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.splash-subtitle {
+  color: hsl(220 80% 75%);
+}
+
+.splash-status-item {
+  transition: opacity 260ms ease-out, transform 260ms ease-out;
+}
+
+.splash-status-delay-1 {
+  transition-delay: 600ms;
+}
+
+.splash-status-delay-2 {
+  transition-delay: 750ms;
+}
+
+.splash-status-delay-3 {
+  transition-delay: 900ms;
+}
+
+.splash-status-dot-connected {
+  background-color: #60a5fa;
+  box-shadow: 0 0 8px #60a5fa;
+}
+
+.splash-status-dot-secure {
+  background-color: #34d399;
+  box-shadow: 0 0 8px #34d399;
+}
+
+.splash-status-dot-ready {
+  background-color: #c084fc;
+  box-shadow: 0 0 8px #c084fc;
+}
+
+.splash-loading-fill {
+  background: linear-gradient(90deg, hsl(220 90% 60%), hsl(270 80% 65%), hsl(220 90% 60%));
+  background-size: 200% 100%;
+  animation: splash-bar-shimmer 1.2s linear infinite;
+  box-shadow: 0 0 12px hsla(220, 90%, 60%, 0.6);
+  transition: width 320ms linear;
+}
+
+.splash-vignette {
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(3, 7, 18, 0.7) 100%);
 }
 
 /* Aurora gradient background */
@@ -401,7 +520,7 @@
     radial-gradient(ellipse 80% 60% at 40% 40%, hsla(220,90%,55%,0.08) 0%, transparent 70%),
     radial-gradient(ellipse 50% 50% at 70% 30%, hsla(270,80%,55%,0.06) 0%, transparent 60%),
     radial-gradient(ellipse 40% 40% at 30% 70%, hsla(190,80%,50%,0.04) 0%, transparent 60%);
-  animation: splash-aurora-drift 8s ease-in-out infinite alternate;
+  animation: splash-aurora-drift 10s ease-in-out infinite alternate;
 }
 @keyframes splash-aurora-drift {
   0%   { transform: translate(0, 0) scale(1); }
@@ -424,7 +543,7 @@
 
 /* Glow breathing */
 .splash-glow-breathe {
-  animation: splash-glow-breathe 3s ease-in-out infinite;
+  animation: splash-glow-breathe 2.2s ease-in-out infinite;
 }
 @keyframes splash-glow-breathe {
   0%, 100% { opacity: 0.6; transform: scale(1); }
@@ -433,7 +552,7 @@
 
 /* Logo pulse on appear */
 .splash-logo-pulse {
-  animation: splash-logo-pulse 1s ease-out;
+  animation: splash-logo-pulse 0.45s ease-out;
 }
 @keyframes splash-logo-pulse {
   0%  { transform: scale(0.6); filter: brightness(3) blur(6px); }
@@ -443,7 +562,7 @@
 
 /* Flash on reveal */
 .splash-flash {
-  animation: splash-flash 0.6s ease-out forwards;
+  animation: splash-flash 0.3s ease-out forwards;
 }
 @keyframes splash-flash {
   0%   { opacity: 0.8; transform: scale(0.5); }
@@ -457,9 +576,49 @@
 }
 
 /* Dashboard entry after splash */
+.splash-dashboard-underlay {
+  opacity: 0;
+  filter: blur(14px);
+  transform: scale(0.985) translateY(8px);
+}
+
+.splash-dashboard-reveal {
+  animation: dashboard-reveal 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, filter, transform;
+}
+
 @keyframes dashboard-reveal {
-  0%   { opacity: 0; filter: blur(8px); transform: scale(1.02); }
-  100% { opacity: 1; filter: blur(0);   transform: scale(1); }
+  0%   { opacity: 0; filter: blur(14px); transform: scale(0.985) translateY(8px); }
+  45%  { opacity: 0.72; filter: blur(6px); transform: scale(0.995) translateY(3px); }
+  100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-dissolve,
+  .splash-aurora,
+  .splash-spin,
+  .splash-spin-reverse,
+  .splash-glow-breathe,
+  .splash-logo-pulse,
+  .splash-flash,
+  .splash-loading-fill {
+    animation: none !important;
+  }
+
+  .splash-transition-slow,
+  .splash-transition-medium,
+  .splash-transition-fast,
+  .splash-status-item {
+    transition-duration: 120ms !important;
+  }
+
+  .splash-dashboard-underlay,
+  .splash-dashboard-reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
 }
 
 /* Weather Icon Animations */

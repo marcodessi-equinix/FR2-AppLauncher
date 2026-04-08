@@ -42,6 +42,7 @@ import {
 } from '../ui/dialog';
 import { Input } from '../ui/input';
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
+import { useI18n } from '../../lib/i18n';
 
 interface RichTextEditorProps {
   content: string;
@@ -79,6 +80,7 @@ const Separator = () => (
 );
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChange }) => {
+  const { t } = useI18n();
   // 1. Hooks first (Always consistent order)
   const [isLinkDialogOpen, setIsLinkDialogOpen] = React.useState(false);
   const [linkUrl, setLinkUrl] = React.useState('');
@@ -206,21 +208,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive('bold')}
-            title="Fett"
+            title={t('editor.bold')}
           >
             <Bold className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleItalic().run()}
             active={editor.isActive('italic')}
-            title="Kursiv"
+            title={t('editor.italic')}
           >
             <Italic className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleUnderline().run()}
             active={editor.isActive('underline')}
-            title="Unterstrichen"
+            title={t('editor.underline')}
           >
             <UnderlineIcon className="h-3.5 w-3.5" />
           </ToolbarButton>
@@ -232,7 +234,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    title="Schriftart"
+                  title={t('editor.fontFamily')}
                     className={cn(
                     'h-7 w-7 flex items-center justify-center rounded-lg transition-colors duration-150',
                     'hover:bg-[hsl(var(--glass-highlight)/0.08)] text-muted-foreground/60 hover:text-foreground relative group',
@@ -266,7 +268,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    title="Emoji einfügen"
+                  title={t('editor.insertEmoji')}
                     className={cn(
                     'h-7 w-7 flex items-center justify-center rounded-lg transition-colors duration-150',
                     'hover:bg-[hsl(var(--glass-highlight)/0.08)] text-muted-foreground/60 hover:text-foreground relative group',
@@ -290,7 +292,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
                     lazyLoadEmojis={true}
                     width={350}
                     height={400}
-                    searchPlaceHolder="Suchen..."
+                    searchPlaceHolder={t('editor.searchEmoji')}
                 />
             </PopoverContent>
           </Popover>
@@ -300,14 +302,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             active={editor.isActive('heading', { level: 1 })}
-            title="Überschrift 1"
+            title={t('editor.heading1')}
           >
             <Heading1 className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             active={editor.isActive('heading', { level: 2 })}
-            title="Überschrift 2"
+            title={t('editor.heading2')}
           >
             <Heading2 className="h-3.5 w-3.5" />
           </ToolbarButton>
@@ -317,14 +319,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             active={editor.isActive('bulletList')}
-            title="Aufzählung"
+            title={t('editor.bulletList')}
           >
             <List className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             active={editor.isActive('orderedList')}
-            title="Nummerierung"
+            title={t('editor.orderedList')}
           >
             <ListOrdered className="h-3.5 w-3.5" />
           </ToolbarButton>
@@ -334,7 +336,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
           <ToolbarButton 
             onClick={handleLinkClick} 
             active={editor.isActive('link')} 
-            title={editor.isActive('link') ? "Link entfernen" : "Link einfügen"}
+            title={editor.isActive('link') ? t('editor.removeLink') : t('editor.insertLink')}
           >
             <LinkIcon className="h-3.5 w-3.5" />
           </ToolbarButton>
@@ -344,7 +346,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    title="Textfarbe"
+                  title={t('editor.textColor')}
                     className={cn(
                     'h-7 w-7 flex items-center justify-center rounded-lg transition-colors duration-150',
                     'hover:bg-[hsl(var(--glass-highlight)/0.08)] text-muted-foreground/60 hover:text-foreground relative group',
@@ -392,7 +394,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
                                     const input = e.currentTarget.previousElementSibling as HTMLInputElement;
                                     handleColorPreset(input.value);
                                 }}
-                                title="Apply Hex Color"
+                                title={t('editor.applyHexColor')}
                             >
                                 <span className="text-[10px] font-bold">OK</span>
                             </Button>
@@ -407,21 +409,21 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign('left').run()}
             active={editor.isActive({ textAlign: 'left' })}
-            title="Linksbündig"
+            title={t('editor.alignLeft')}
           >
             <AlignLeft className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign('center').run()}
             active={editor.isActive({ textAlign: 'center' })}
-            title="Zentriert"
+            title={t('editor.alignCenter')}
           >
             <AlignCenter className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().setTextAlign('right').run()}
             active={editor.isActive({ textAlign: 'right' })}
-            title="Rechtsbündig"
+            title={t('editor.alignRight')}
           >
             <AlignRight className="h-3.5 w-3.5" />
           </ToolbarButton>
@@ -430,13 +432,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
 
           <ToolbarButton
             onClick={() => editor.chain().focus().undo().run()}
-            title="Rückgängig"
+            title={t('editor.undo')}
           >
             <Undo className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().redo().run()}
-            title="Wiederholen"
+            title={t('editor.redo')}
           >
             <Redo className="h-3.5 w-3.5" />
           </ToolbarButton>
@@ -450,17 +452,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
       <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
         <DialogContent className="sm:max-w-md border-white/10 bg-black/90">
           <DialogHeader>
-            <DialogTitle>Link einfügen</DialogTitle>
+            <DialogTitle>{t('editor.linkDialogTitle')}</DialogTitle>
             <DialogDescription>
-              Fügen Sie eine URL für den ausgewählten Text ein.
+              {t('editor.linkDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2 py-4">
             <div className="grid flex-1 gap-2">
-              <label htmlFor="link-url" className="sr-only">Link URL</label>
+              <label htmlFor="link-url" className="sr-only">{t('editor.linkUrl')}</label>
               <Input
                 id="link-url"
-                placeholder="https://example.com"
+                placeholder={t('editor.linkUrlPlaceholder')}
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
                 onKeyDown={(e) => {
@@ -478,7 +480,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
               onClick={() => setIsLinkDialogOpen(false)}
               className="hover:bg-white/5"
             >
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button
               type="button"
@@ -486,7 +488,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ content, onChang
               onClick={handleLinkSubmit}
               disabled={!linkUrl}
             >
-              Link einfügen
+              {t('editor.insertLink')}
             </Button>
           </DialogFooter>
         </DialogContent>

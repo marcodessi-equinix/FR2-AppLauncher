@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GripVertical } from 'lucide-react';
 // import { cn } from '../../lib/utils';
 import { Card } from '../ui/card';
@@ -21,6 +21,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useI18n } from '../../lib/i18n';
 
 // ==================================================
 // Timezone Definitions
@@ -52,19 +53,22 @@ interface CompactTimeCardProps {
   dragHandle?: React.ReactNode;
 }
 
-const CompactTimeCard: React.FC<CompactTimeCardProps> = ({ entry, time, dragHandle }) => {
-  const timeString = time.toLocaleTimeString('de-DE', {
-    timeZone: entry.timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const CompactTimeCard: React.FC<CompactTimeCardProps> = React.memo(({ entry, time, dragHandle }) => {
+  const { locale } = useI18n();
 
-  const dateString = time.toLocaleDateString('de-DE', {
-    timeZone: entry.timezone,
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  });
+  // Cache Intl.DateTimeFormat — creating them is expensive and they were
+  // previously recreated every second for all 8 timezone cards.
+  const timeFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { timeZone: entry.timezone, hour: '2-digit', minute: '2-digit' }),
+    [locale, entry.timezone]
+  );
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { timeZone: entry.timezone, weekday: 'short', day: '2-digit', month: 'short' }),
+    [locale, entry.timezone]
+  );
+
+  const timeString = timeFormatter.format(time);
+  const dateString = dateFormatter.format(time);
 
   return (
     <Card className="relative group p-3 flex items-center gap-3 transition-colors duration-300 overflow-hidden h-[60px]">
@@ -81,7 +85,7 @@ const CompactTimeCard: React.FC<CompactTimeCardProps> = ({ entry, time, dragHand
       </span>
     </Card>
   );
-};
+});
 
 // ==================================================
 // Sortable Wrapper

@@ -3,8 +3,42 @@ import { persist } from 'zustand/middleware';
 import { Group, Link } from '../types';
 import api, { safeArray } from '../lib/api';
 
+const CLIENT_ID_STORAGE_KEY = 'applauncher_client_id';
+const CLIENT_FINGERPRINT_STORAGE_KEY = 'applauncher_client_fingerprint';
+
+let initClientIdentityPromise: Promise<void> | null = null;
+let fingerprintPromise: Promise<string> | null = null;
+
+const getFingerprint = async () => {
+  if (!fingerprintPromise) {
+    fingerprintPromise = (async () => {
+      const { getClientFingerprint } = await import('../lib/fingerprint');
+      return getClientFingerprint();
+    })();
+  }
+
+  return fingerprintPromise;
+};
+
 export type Theme = 'dark' | 'light';
 export type PreferredLanguage = 'de' | 'en';
+export type LanguagePreferenceSource = 'system' | 'manual';
+
+interface PersistedAppState {
+  theme: Theme;
+  activeCategory: string | null;
+  preferredLanguage: PreferredLanguage;
+  languagePreferenceSource: LanguagePreferenceSource;
+}
+
+const detectSystemLanguage = (): PreferredLanguage => {
+  if (typeof navigator === 'undefined') {
+    return 'de';
+  }
+
+  const locale = navigator.languages?.[0] || navigator.language || 'de';
+  return locale.toLowerCase().startsWith('de') ? 'de' : 'en';
+};
 
 interface AppState {
   isAdmin: boolean;
@@ -23,7 +57,9 @@ interface AppState {
   setTheme: (theme: Theme) => void;
 
   preferredLanguage: PreferredLanguage;
+  languagePreferenceSource: LanguagePreferenceSource;
   setPreferredLanguage: (lang: PreferredLanguage) => void;
+  syncPreferredLanguageWithSystem: () => void;
   
   reorderLinks: (groupId: number, newLinks: Link[]) => void;
   
@@ -54,8 +90,16 @@ export const useStore = create<AppState>()(
       theme: 'dark',
       setTheme: (theme) => set({ theme }),
 
-      preferredLanguage: 'de',
-      setPreferredLanguage: (lang) => set({ preferredLanguage: lang }),
+      preferredLanguage: detectSystemLanguage(),
+      languagePreferenceSource: 'system',
+      setPreferredLanguage: (lang) => set({ preferredLanguage: lang, languagePreferenceSource: 'manual' }),
+      syncPreferredLanguageWithSystem: () => {
+        if (get().languagePreferenceSource !== 'system') {
+          return;
+        }
+
+        set({ preferredLanguage: detectSystemLanguage() });
+      },
 
       reorderLinks: (groupId: number, newLinks: Link[]) => set((state) => ({
         groups: state.groups.map((g) => 
@@ -66,28 +110,47 @@ export const useStore = create<AppState>()(
       clientId: null,
       
       initClientIdentity: async () => {
-        // New Client Identity Logic
-        try {
-            // 1. Get Fingerprint
-            const { getClientFingerprint } = await import('../lib/fingerprint');
-            const fingerprint = await getClientFingerprint();
-            
-            // 2. Register with Backend
-            const res = await api.post('/clients/register', { fingerprint });
-            const id = typeof res.data?.id === 'string' ? res.data.id : null;
-            if (!id) {
-              throw new Error('Client register response missing id.');
-            }
-            
-            set({ clientId: id });
-            
-            // 3. Fetch Favorites for this Client
-            const favs = await api.get(`/favorites/${id}`);
-            set({ favorites: safeArray<number>(favs.data) });
-            
-        } catch (e) {
-            console.error('Failed to init client identity', e);
+        const existingClientId = get().clientId;
+        if (existingClientId) {
+          return;
         }
+
+        if (initClientIdentityPromise) {
+          return initClientIdentityPromise;
+        }
+
+        initClientIdentityPromise = (async () => {
+          try {
+            const fingerprint = await getFingerprint();
+            const cachedFingerprint = localStorage.getItem(CLIENT_FINGERPRINT_STORAGE_KEY);
+            const cachedClientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+
+            let clientId = cachedFingerprint === fingerprint ? cachedClientId : null;
+
+            if (!clientId) {
+              const res = await api.post('/clients/register', { fingerprint });
+              const registeredId = typeof res.data?.id === 'string' ? res.data.id : null;
+              if (!registeredId) {
+                throw new Error('Client register response missing id.');
+              }
+
+              clientId = registeredId;
+              localStorage.setItem(CLIENT_ID_STORAGE_KEY, registeredId);
+              localStorage.setItem(CLIENT_FINGERPRINT_STORAGE_KEY, fingerprint);
+            }
+
+            set({ clientId });
+
+            const favs = await api.get(`/favorites/${clientId}`);
+            set({ favorites: safeArray<number>(favs.data) });
+          } catch (e) {
+            console.error('Failed to init client identity', e);
+          } finally {
+            initClientIdentityPromise = null;
+          }
+        })();
+
+        return initClientIdentityPromise;
       },
 
       favorites: [],
@@ -122,7 +185,23 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'applauncher-storage',
-      partialize: (state) => ({ theme: state.theme, activeCategory: state.activeCategory, preferredLanguage: state.preferredLanguage }),
+      version: 2,
+      partialize: (state) => ({
+        theme: state.theme,
+        activeCategory: state.activeCategory,
+        preferredLanguage: state.preferredLanguage,
+        languagePreferenceSource: state.languagePreferenceSource,
+      }),
+      migrate: (persistedState) => {
+        const state = persistedState as Partial<PersistedAppState> | undefined;
+
+        return {
+          theme: state?.theme ?? 'dark',
+          activeCategory: state?.activeCategory ?? 'all',
+          preferredLanguage: detectSystemLanguage(),
+          languagePreferenceSource: state?.languagePreferenceSource ?? 'system',
+        };
+      },
     }
   )
 );

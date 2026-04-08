@@ -15,7 +15,7 @@ interface DynamicIconProps {
  * 2. Iconify Strings (e.g., lucide:home, mdi:account) -> Renders via @iconify/react
  * 3. Fallback (Globe)
  */
-export const DynamicIcon: React.FC<DynamicIconProps> = ({ 
+const DynamicIconComponent: React.FC<DynamicIconProps> = ({ 
   icon, 
   className,
   fallback = <Globe className={cn("h-5 w-5 text-muted-foreground", className)} />
@@ -53,3 +53,5 @@ export const DynamicIcon: React.FC<DynamicIconProps> = ({
     />
   );
 };
+
+export const DynamicIcon = React.memo(DynamicIconComponent);

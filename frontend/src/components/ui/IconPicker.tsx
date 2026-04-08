@@ -4,6 +4,7 @@ import { Search, Upload, Loader2, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import api from '../../lib/api';
 import { Button } from './button';
+import { useI18n } from '../../lib/i18n';
 
 interface IconPickerProps {
   value: string;
@@ -25,17 +26,6 @@ interface UploadedIcon {
 
 type IconPickerTab = 'library' | 'upload';
 type IconToneFilter = 'all' | 'color' | 'mono';
-
-const ICON_PICKER_TABS: { id: IconPickerTab; label: string }[] = [
-  { id: 'library', label: 'Bibliothek (Alle Icons)' },
-  { id: 'upload', label: 'Eigener Upload' },
-];
-
-const ICON_TONE_FILTERS: { id: IconToneFilter; label: string }[] = [
-  { id: 'all', label: 'Alle' },
-  { id: 'color', label: 'Farbig' },
-  { id: 'mono', label: 'Ohne Farbe' },
-];
 
 const COLORFUL_ICON_PREFIXES = new Set([
   'cib',
@@ -153,6 +143,7 @@ const getUploadedIconLabel = (icon: UploadedIcon): string =>
   icon.displayName?.trim() || icon.originalName?.trim() || icon.filename;
 
 export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose }) => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<IconPickerTab>('library');
   const [search, setSearch] = useState('');
   const [icons, setIcons] = useState<string[]>(DEFAULT_LIBRARY_ICONS);
@@ -165,6 +156,15 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
   const [toneFilter, setToneFilter] = useState<IconToneFilter>('all');
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iconPickerTabs: { id: IconPickerTab; label: string }[] = [
+    { id: 'library', label: t('iconPicker.libraryTab') },
+    { id: 'upload', label: t('iconPicker.uploadTab') },
+  ];
+  const toneFilters: { id: IconToneFilter; label: string }[] = [
+    { id: 'all', label: t('iconPicker.filterAll') },
+    { id: 'color', label: t('iconPicker.filterColor') },
+    { id: 'mono', label: t('iconPicker.filterMono') },
+  ];
 
   const filteredIcons = useMemo(() => {
     if (toneFilter === 'all') {
@@ -240,10 +240,10 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
       const newIcon = res.data;
       setUploadedIcons((prev) => [newIcon, ...prev.filter((icon) => icon.filename !== newIcon.filename)]);
       onChange(newIcon.url);
-      setUploadMessage(`Hochgeladen: ${getUploadedIconLabel(newIcon)}`);
+      setUploadMessage(t('iconPicker.uploaded', { name: getUploadedIconLabel(newIcon) }));
     } catch (err) {
       console.error('Upload failed', err);
-      alert('Fehler beim Upload. Bitte erneut versuchen.');
+      alert(t('iconPicker.uploadError'));
     } finally {
       setUploading(false);
     }
@@ -267,11 +267,11 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
         onChange('');
       }
 
-      setUploadMessage(`Gelöscht: ${label}`);
+      setUploadMessage(t('iconPicker.deleted', { name: label }));
       setPendingDeleteIcon(null);
     } catch (err) {
       console.error('Delete failed', err);
-      alert('Icon konnte nicht gelöscht werden. Bitte erneut versuchen.');
+      alert(t('iconPicker.deleteError'));
     } finally {
       setDeletingFilename(null);
     }
@@ -281,21 +281,21 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
     <div className="flex flex-col h-[680px] lg:h-[740px] bg-card overflow-hidden">
       {/* Tab Navigation */}
       <div className="flex border-b border-border bg-muted/30 p-2 gap-2">
-        {ICON_PICKER_TABS.map((t) => (
+        {iconPickerTabs.map((tab) => (
           <button
-            key={t.id}
+            key={tab.id}
             onClick={() => {
-              setActiveTab(t.id);
+              setActiveTab(tab.id);
               setSearch('');
               setUploadMessage(null);
             }}
             type="button"
             className={cn(
               "flex-1 py-3 text-xs font-bold rounded-lg transition-colors uppercase tracking-widest",
-              activeTab === t.id ? "bg-background shadow-md text-accent border border-accent/20" : "text-muted-foreground hover:bg-background/40"
+              activeTab === tab.id ? "bg-background shadow-md text-accent border border-accent/20" : "text-muted-foreground hover:bg-background/40"
             )}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -310,7 +310,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
               <input
                 type="text"
                 autoFocus
-                placeholder="Suche in 200.000+ Icons (z.B. home, car, google)..."
+                placeholder={t('iconPicker.libraryPlaceholder')}
                 className="w-full bg-background border border-border rounded-xl pl-12 pr-12 py-3.5 text-base focus:ring-1 focus:ring-accent outline-none ring-accent/20 transition-shadow font-medium"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -319,7 +319,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex items-center gap-1 rounded-lg border border-border/60 bg-muted/20 p-1">
-                {ICON_TONE_FILTERS.map((filter) => (
+                {toneFilters.map((filter) => (
                   <button
                     key={filter.id}
                     type="button"
@@ -336,7 +336,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                 ))}
               </div>
 
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{filteredIcons.length} Icons sichtbar</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{t('iconPicker.visibleCount', { count: filteredIcons.length })}</span>
             </div>
 
             {/* Icon Grid */}
@@ -368,8 +368,11 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                    </div>
                    <p className="text-xs italic text-center max-w-[240px]">
                      {search
-                       ? `Keine ${toneFilter === 'all' ? '' : toneFilter === 'color' ? 'farbigen ' : 'monochromen '}Icons für "${search}" gefunden.`
-                       : 'Für diesen Filter sind in der aktuellen Auswahl keine Icons vorhanden.'}
+                       ? t('iconPicker.searchNoResults', {
+                           tone: toneFilter === 'all' ? '' : toneFilter === 'color' ? t('iconPicker.colorTone') : t('iconPicker.monoTone'),
+                           search,
+                         })
+                       : t('iconPicker.filterNoIcons')}
                    </p>
                 </div>
               )}
@@ -386,13 +389,13 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
             {/* Upload button row */}
             <label className={cn("cursor-pointer flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl border border-dashed border-accent/40 bg-accent/5 hover:bg-accent/10 transition-colors text-accent text-xs font-bold uppercase tracking-widest", uploading && "opacity-50 pointer-events-none")}>
               {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-              {uploading ? 'Wird hochgeladen...' : 'Neues Icon hochladen'}
+              {uploading ? t('iconPicker.uploading') : t('iconPicker.newUpload')}
               <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
             </label>
 
             {selectedUploadedIcon && (
               <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-                Ausgewählt: <span className="font-semibold text-foreground">{getUploadedIconLabel(selectedUploadedIcon)}</span>
+                {t('iconPicker.selectedLabel')}: <span className="font-semibold text-foreground">{getUploadedIconLabel(selectedUploadedIcon)}</span>
               </div>
             )}
 
@@ -406,11 +409,11 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                 <div className="p-4 bg-accent/10 rounded-full text-accent">
                   <Upload className="h-8 w-8" />
                 </div>
-                <p className="text-xs font-black uppercase tracking-tight">Noch keine Icons hochgeladen</p>
-                <p className="text-[11px] text-muted-foreground max-w-[200px]">Lade dein erstes Icon hoch, um es hier zu sehen.</p>
+                <p className="text-xs font-black uppercase tracking-tight">{t('iconPicker.noUploads')}</p>
+                <p className="text-[11px] text-muted-foreground max-w-[200px]">{t('iconPicker.firstUpload')}</p>
                 <div className="pt-3 border-t border-border/20 w-full flex justify-between px-6 text-[9px] text-muted-foreground/60 font-medium">
-                  <span>Alle Bildformate</span>
-                  <span>MAX 2MB</span>
+                  <span>{t('iconPicker.allImageFormats')}</span>
+                  <span>{t('iconPicker.max2mb')}</span>
                 </div>
               </div>
             ) : (
@@ -470,7 +473,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
         <div className="fixed inset-0 z-[220] flex items-center justify-center p-4">
           <button
             type="button"
-            aria-label="Löschdialog schließen"
+            aria-label={t('iconPicker.closeDeleteDialog')}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setPendingDeleteIcon(null)}
           />
@@ -479,10 +482,10 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
             <div className="border-b border-[hsl(var(--glass-border)/0.05)] px-6 py-5">
               <div className="space-y-2 text-left">
                 <h3 className="text-base font-black uppercase tracking-[0.18em] text-foreground/90">
-                  Icon löschen
+                  {t('iconPicker.deleteTitle')}
                 </h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  {`Soll "${getUploadedIconLabel(pendingDeleteIcon)}" wirklich entfernt werden?`}
+                  {t('iconPicker.deleteConfirm', { name: getUploadedIconLabel(pendingDeleteIcon) })}
                 </p>
               </div>
             </div>
@@ -494,7 +497,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                 onClick={() => setPendingDeleteIcon(null)}
                 className="rounded-xl"
               >
-                Abbrechen
+                {t('common.cancel')}
               </Button>
               <Button
                 type="button"
@@ -504,7 +507,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                 className="gap-2 rounded-xl"
               >
                 {deletingFilename === pendingDeleteIcon.filename && <Loader2 className="h-4 w-4 animate-spin" />}
-                Löschen
+                {t('common.delete')}
               </Button>
             </div>
           </div>

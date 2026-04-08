@@ -5,23 +5,23 @@ export const ThemeManager: React.FC = () => {
   React.useEffect(() => {
     const storageKey = 'applauncher-storage';
     const root = document.documentElement;
-    let transitionTimeout: number | null = null;
 
     const applyTheme = (theme: Theme) => {
-      root.classList.add('theme-switching');
+      // Kill all transitions so the theme flips instantly
+      const kill = document.createElement('style');
+      kill.textContent = '*, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }';
+      document.head.appendChild(kill);
+
       root.classList.remove('dark', 'light');
       root.classList.add(theme);
       root.setAttribute('data-theme', theme);
       root.style.colorScheme = theme;
 
-      if (transitionTimeout !== null) {
-        window.clearTimeout(transitionTimeout);
-      }
-
-      transitionTimeout = window.setTimeout(() => {
-        root.classList.remove('theme-switching');
-        transitionTimeout = null;
-      }, 180);
+      // Force reflow so browser paints with zero-duration, then restore
+      void root.offsetHeight;
+      requestAnimationFrame(() => {
+        document.head.removeChild(kill);
+      });
     };
 
     let initialTheme: Theme = 'dark';
@@ -44,15 +44,13 @@ export const ThemeManager: React.FC = () => {
 
     applyTheme(initialTheme);
 
-    const unsubscribe = useStore.subscribe((state) => {
-      applyTheme(state.theme);
+    const unsubscribe = useStore.subscribe((state, prevState) => {
+      if (state.theme !== prevState.theme) {
+        applyTheme(state.theme);
+      }
     });
 
     return () => {
-      if (transitionTimeout !== null) {
-        window.clearTimeout(transitionTimeout);
-      }
-      root.classList.remove('theme-switching');
       unsubscribe();
     };
   }, []);
