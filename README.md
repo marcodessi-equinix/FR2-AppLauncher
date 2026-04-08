@@ -74,7 +74,7 @@ ADMIN_PASSWORD=CHANGE_ME_TO_A_STRONG_PASSWORD
 
 # ── Reverse Proxy ─────────────────────────────
 # Name of your proxy's Docker network (find with: docker network ls)
-PROXY_NETWORK=npm_proxy
+NPM_NETWORK=nginx-proxy-manager_default
 
 # ── Optional (defaults shown) ─────────────────
 # APP_PORT=9020
@@ -99,10 +99,10 @@ The app will be available at **http://localhost:9020** (or whatever you set `APP
 3. Add environment variables:
    - `JWT_SECRET` — a random 64-char hex string
    - `ADMIN_PASSWORD` — your admin password
-   - `PROXY_NETWORK` — name of your reverse proxy's Docker network (e.g. `npm_proxy`)
+   - `NPM_NETWORK` — name of your reverse proxy's Docker network (e.g. `nginx-proxy-manager_default`)
    - `COOKIE_SECURE` — set to `true` if your proxy terminates SSL
 4. Deploy.
-5. In your proxy manager, point the proxy host to container `applauncher-frontend-1` port `80`, scheme `http`.
+5. In NPM, create a proxy host: hostname `applauncher-frontend`, port `80`, scheme `http`.
 
 ## Configuration
 
@@ -114,7 +114,7 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 | `ADMIN_PASSWORD` | **Required.** Admin login password. | — |
 | `APP_PORT` | Host port the app listens on. | `9020` |
 | `COOKIE_SECURE` | Cookie security: `auto`, `true`, or `false`. | `auto` |
-| `PROXY_NETWORK` | Docker network name of your reverse proxy (see [Reverse Proxy](#reverse-proxy)). | `npm_proxy` |
+| `NPM_NETWORK` | Docker network name of your reverse proxy (see [Reverse Proxy](#reverse-proxy)). | `nginx-proxy-manager_default` |
 | `FRONTEND_URL` | Optional public URL for stricter origin matching behind proxies. | — |
 
 > **Note:** `COOKIE_SECURE=auto` detects HTTPS via `X-Forwarded-Proto`. If your reverse proxy does not forward this header, set `COOKIE_SECURE=true` explicitly when using HTTPS.
@@ -256,13 +256,13 @@ The frontend container automatically joins your proxy's Docker network so the pr
    ```
    Common names: `npm_proxy`, `nginx-proxy-manager_default`, `proxy`.
 
-2. Set `PROXY_NETWORK` in your `.env` or Portainer environment:
+2. Set `NPM_NETWORK` in your `.env` or Portainer environment:
    ```env
-   PROXY_NETWORK=npm_proxy
+   NPM_NETWORK=nginx-proxy-manager_default
    ```
 
 3. In your proxy manager, create a proxy host:
-   - **Forward Hostname / IP:** `applauncher-frontend-1`
+   - **Forward Hostname / IP:** `applauncher-frontend`
    - **Forward Port:** `80`
    - **Scheme:** `http`
    - **SSL:** request/enable certificate as usual
