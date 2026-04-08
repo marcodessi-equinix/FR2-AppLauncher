@@ -11,9 +11,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_PATH=${DATABASE_PATH:-/app/data/applauncher.db}
-      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or your stack manager}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env or your stack manager}
+      - DATABASE_PATH=/app/data/applauncher.db
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - FRONTEND_URL=${FRONTEND_URL:-}
       - COOKIE_SECURE=${COOKIE_SECURE:-auto}
       - ALLOW_INSECURE_DEFAULTS=false
@@ -28,11 +28,6 @@ services:
         aliases:
           - applauncher-backend
     restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     expose:
       - "3000"
 
@@ -45,18 +40,17 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - proxy
     restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     ports:
       - "${APP_PORT:-9020}:80"
 
 networks:
   internal:
     driver: bridge
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-npm_proxy}
 
 volumes:
   applauncher-data:

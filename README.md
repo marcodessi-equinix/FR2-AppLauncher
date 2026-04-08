@@ -72,11 +72,13 @@ Edit `.env` — copy this template and fill in your values:
 JWT_SECRET=PASTE_A_RANDOM_64_CHAR_HEX_STRING_HERE
 ADMIN_PASSWORD=CHANGE_ME_TO_A_STRONG_PASSWORD
 
+# ── Reverse Proxy ─────────────────────────────
+# Name of your proxy's Docker network (find with: docker network ls)
+PROXY_NETWORK=npm_proxy
+
 # ── Optional (defaults shown) ─────────────────
 # APP_PORT=9020
 # COOKIE_SECURE=auto
-
-# ── Reverse Proxy (uncomment if needed) ───────
 # FRONTEND_URL=https://applauncher.example.com
 ```
 
@@ -94,8 +96,13 @@ The app will be available at **http://localhost:9020** (or whatever you set `APP
 
 1. Create a new stack from this Git repository.
 2. Set the compose file to `docker-compose.yml`.
-3. Add environment variables: `JWT_SECRET` and `ADMIN_PASSWORD`.
+3. Add environment variables:
+   - `JWT_SECRET` — a random 64-char hex string
+   - `ADMIN_PASSWORD` — your admin password
+   - `PROXY_NETWORK` — name of your reverse proxy's Docker network (e.g. `npm_proxy`)
+   - `COOKIE_SECURE` — set to `true` if your proxy terminates SSL
 4. Deploy.
+5. In your proxy manager, point the proxy host to container `applauncher-frontend-1` port `80`, scheme `http`.
 
 ## Configuration
 
@@ -107,7 +114,8 @@ All configuration is done via environment variables. Copy `.env.example` to `.en
 | `ADMIN_PASSWORD` | **Required.** Admin login password. | — |
 | `APP_PORT` | Host port the app listens on. | `9020` |
 | `COOKIE_SECURE` | Cookie security: `auto`, `true`, or `false`. | `auto` |
-| `FRONTEND_URL` | Optional public URL used for stricter origin matching behind proxies. | — |
+| `PROXY_NETWORK` | Docker network name of your reverse proxy (see [Reverse Proxy](#reverse-proxy)). | `npm_proxy` |
+| `FRONTEND_URL` | Optional public URL for stricter origin matching behind proxies. | — |
 
 > **Note:** `COOKIE_SECURE=auto` detects HTTPS via `X-Forwarded-Proto`. If your reverse proxy does not forward this header, set `COOKIE_SECURE=true` explicitly when using HTTPS.
 
@@ -236,18 +244,32 @@ npm run lint         # Lint frontend
 
 ## Reverse Proxy
 
-If you run AppLauncher behind a reverse proxy (Nginx Proxy Manager, Traefik, Caddy, etc.):
+AppLauncher works out-of-the-box with Nginx Proxy Manager (NPM), Traefik, Caddy, or any other reverse proxy.
 
-Use the same `docker-compose.yml` for both direct access and reverse-proxy setups.
+The frontend container automatically joins your proxy's Docker network so the proxy can reach it directly — no host-port forwarding tricks needed.
 
-1. Point the proxy to `http://<host-ip>:<APP_PORT>` (default `9020`).
-2. Ensure the proxy forwards `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For`.
-3. Set `COOKIE_SECURE=true` if the proxy terminates SSL, otherwise leave it at `auto`.
-4. Optionally set `FRONTEND_URL=https://your-domain.example` for stricter origin validation.
+### Setup
 
-> Avoid manually attaching the frontend container to a shared proxy network unless you need container-to-container proxying. The simplest and most reliable setup is to let the proxy forward to `http://<host-ip>:<APP_PORT>`.
+1. Find your proxy's Docker network name:
+   ```bash
+   docker network ls
+   ```
+   Common names: `npm_proxy`, `nginx-proxy-manager_default`, `proxy`.
 
-A reference host-level nginx config is provided in `nginx/nginx.conf`.
+2. Set `PROXY_NETWORK` in your `.env` or Portainer environment:
+   ```env
+   PROXY_NETWORK=npm_proxy
+   ```
+
+3. In your proxy manager, create a proxy host:
+   - **Forward Hostname / IP:** `applauncher-frontend-1`
+   - **Forward Port:** `80`
+   - **Scheme:** `http`
+   - **SSL:** request/enable certificate as usual
+
+4. Set `COOKIE_SECURE=true` if your proxy terminates SSL.
+
+> The app is also reachable directly via `http://<host-ip>:<APP_PORT>` (default `9020`) for testing without a proxy.
 
 ## Security
 
