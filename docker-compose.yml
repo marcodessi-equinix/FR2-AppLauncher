@@ -39,8 +39,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    ports:
-      - "${APP_PORT:-9020}:80"
+    # ports:
+    #   - "${APP_PORT:-9020}:80"   # uncomment to also allow direct access via VM:9020
     networks:
       npm_proxy:
         aliases:
