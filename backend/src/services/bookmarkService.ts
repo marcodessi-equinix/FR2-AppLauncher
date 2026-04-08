@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import db from '../db/index';
+import { normalizeStoredIconValue } from '../lib/iconPolicy';
 
 function isAllowedUrl(urlString: string): boolean {
   try {
@@ -8,16 +9,6 @@ function isAllowedUrl(urlString: string): boolean {
   } catch {
     return false;
   }
-}
-
-function isAllowedIcon(icon: string): boolean {
-  if (!icon) return false;
-  if (icon.length > 500000) return false;
-  // Allow data:image/* base64 icons and http(s) URLs only
-  if (icon.startsWith('data:')) {
-    return /^data:image\//i.test(icon);
-  }
-  return isAllowedUrl(icon);
 }
 
 interface ImportResult {
@@ -76,10 +67,7 @@ export function parseBookmarksFromHtml(html: string): ImportPreviewData {
               
               // Skip invalid or dangerous URLs
               if (title && url && isAllowedUrl(url)) {
-                  let icon = $link.attr('icon') || '';
-                  if (icon && !isAllowedIcon(icon)) {
-                      icon = '';
-                  }
+                  const icon = normalizeStoredIconValue($link.attr('icon') || '');
 
                   groupLinks.push({ title, url, icon });
                   totalLinks++;
@@ -149,5 +137,4 @@ export function saveImportedData(data: ImportPreviewData, keepExisting: boolean 
     importTx();
     return { success: true, groups: totalGroups, links: totalLinks, message: 'Import successful' };
 }
-
 

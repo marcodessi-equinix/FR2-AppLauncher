@@ -2,6 +2,7 @@ import express from 'express';
 import db from '../db/index';
 import { requireAdmin } from '../middleware/auth';
 import { z } from 'zod';
+import { requireTrustedOrigin } from '../middleware/trustedOrigin';
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ const ReorderItemSchema = z.object({
   order: z.number(),
 });
 
-router.put('/groups', requireAdmin, (req, res) => {
+router.put('/groups', requireTrustedOrigin, requireAdmin, (req, res) => {
   const result = z.array(ReorderItemSchema).safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({ error: result.error });
@@ -43,7 +44,7 @@ router.put('/groups', requireAdmin, (req, res) => {
 // ==================================================
 // Reorder Links
 // ==================================================
-router.put('/links', requireAdmin, (req, res) => {
+router.put('/links', requireTrustedOrigin, requireAdmin, (req, res) => {
   const result = z.array(ReorderItemSchema).safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({ error: result.error });
@@ -73,7 +74,7 @@ router.put('/links', requireAdmin, (req, res) => {
 // ==================================================
 // Save/Load Timezone Order
 // ==================================================
-router.put('/timezones', requireAdmin, (req, res) => {
+router.put('/timezones', requireTrustedOrigin, requireAdmin, (req, res) => {
   const result = z.array(z.string()).safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({ error: result.error });

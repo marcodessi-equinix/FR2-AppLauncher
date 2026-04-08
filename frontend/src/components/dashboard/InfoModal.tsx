@@ -62,7 +62,6 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
   const saveCards = async (newCards: InfoCard[]) => {
     try {
       const res = await api.post('/system/info-cards', { cards: newCards });
-      // Use the response which includes auto-translated content from backend
       if (res.data.cards) {
         setCards(res.data.cards);
       } else {

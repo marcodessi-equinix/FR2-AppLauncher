@@ -16,24 +16,24 @@ interface VersionChangelogDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   currentVersion: string;
-  buildVersion: string;
   releaseVersion: string;
+  gitSha: string;
   buildDate: string;
+  buildNumber: string;
 }
 
 export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
   isOpen,
   onOpenChange,
   currentVersion,
-  buildVersion,
   releaseVersion,
+  gitSha,
   buildDate,
+  buildNumber,
 }) => {
   const { language, t } = useI18n();
   const changelogEntries = React.useMemo(() => getAppChangelog(language), [language]);
-  const versionDescription = buildVersion === releaseVersion
-    ? t('version.descriptionReleaseOnly', { releaseVersion, buildDate })
-    : t('version.descriptionWithBuild', { releaseVersion, buildVersion, buildDate });
+  const versionDescription = t('version.description', { releaseVersion, gitSha, buildDate });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -51,8 +51,13 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
                       <History className="h-3.5 w-3.5" />
                       {t('version.releaseNotes')}
                     </div>
-                    <DialogTitle className="text-2xl font-black tracking-tight text-foreground md:text-[1.75rem]">
-                      {currentVersion}
+                    <DialogTitle className="space-y-2">
+                      <div className="text-2xl font-black tracking-tight text-foreground md:text-[1.75rem]">
+                        {releaseVersion}
+                      </div>
+                      <div className="text-xs font-bold tracking-[0.18em] text-muted-foreground/80">
+                        {currentVersion}
+                      </div>
                     </DialogTitle>
                     <DialogDescription className="max-w-2xl text-sm leading-relaxed text-muted-foreground/80">
                       {versionDescription}
@@ -76,6 +81,36 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
 
           <div className="max-h-[68vh] overflow-y-auto px-8 py-6 custom-scrollbar">
             <div className="space-y-4">
+              <section className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-[1.2rem] border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.04)] p-4">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/75">
+                    {t('version.releaseLabel')}
+                  </div>
+                  <div className="mt-2 text-sm font-bold text-foreground">{releaseVersion}</div>
+                </div>
+                <div className="rounded-[1.2rem] border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.04)] p-4">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/75">
+                    {t('version.gitShaLabel')}
+                  </div>
+                  <div className="mt-2 text-sm font-bold text-foreground">{gitSha}</div>
+                </div>
+                <div className="rounded-[1.2rem] border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.04)] p-4">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/75">
+                    {t('version.buildDateLabel')}
+                  </div>
+                  <div className="mt-2 text-sm font-bold text-foreground">{buildDate}</div>
+                </div>
+              </section>
+
+              {buildNumber && (
+                <section className="rounded-[1.2rem] border border-[hsl(var(--glass-border)/0.08)] bg-[hsl(var(--glass-highlight)/0.03)] p-4">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/75">
+                    {t('version.buildNumberLabel')}
+                  </div>
+                  <div className="mt-2 text-sm font-bold text-foreground">{buildNumber}</div>
+                </section>
+              )}
+
               {changelogEntries.map((entry) => (
                 <section
                   key={`${entry.version}-${entry.date}`}

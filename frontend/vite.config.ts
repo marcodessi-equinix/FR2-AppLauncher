@@ -1,5 +1,4 @@
 import fs from "fs"
-import crypto from "crypto"
 import path from "path"
 import { execFileSync } from "child_process"
 import react from "@vitejs/plugin-react"
@@ -29,28 +28,13 @@ const resolvePackageVersion = (): string => {
   return '0.1.0'
 }
 
-const normalizeBuildNumber = (value: string): string => {
+const normalizeReleaseVersion = (value: string): string => {
   const trimmed = value.trim()
   if (!trimmed) {
-    return '001'
+    return 'v0.1.0'
   }
 
-  if (/^\d+$/.test(trimmed)) {
-    return trimmed.padStart(3, '0')
-  }
-
-  return trimmed
-}
-
-const createDisplayBuildVersion = (releaseVersion: string, buildNumber: string): string => {
-  const normalizedReleaseVersion = releaseVersion.replace(/^v/i, '')
-  const versionParts = normalizedReleaseVersion.split('.')
-
-  if (versionParts.length >= 3 && versionParts[2] === '0') {
-    return `${versionParts[0]}.${versionParts[1]}.${buildNumber}`
-  }
-
-  return `${normalizedReleaseVersion}.${buildNumber}`
+  return trimmed.startsWith('v') ? trimmed : `v${trimmed}`
 }
 
 const runGit = (args: string[], cwd: string): string =>
@@ -59,93 +43,59 @@ const runGit = (args: string[], cwd: string): string =>
     stdio: ['ignore', 'pipe', 'ignore'],
   }).toString().trim()
 
-const collectFiles = (targetPath: string): string[] => {
-  if (!fs.existsSync(targetPath)) {
-    return []
+const resolveReleaseVersion = (): string => {
+  const envVersion = process.env.APP_VERSION || process.env.VITE_APP_VERSION
+  if (envVersion?.trim()) {
+    return normalizeReleaseVersion(envVersion)
   }
 
-  const stat = fs.statSync(targetPath)
-  if (stat.isFile()) {
-    return [targetPath]
-  }
-
-  return fs.readdirSync(targetPath)
-    .sort((left, right) => left.localeCompare(right))
-    .flatMap((entry) => collectFiles(path.join(targetPath, entry)))
+  return normalizeReleaseVersion(resolvePackageVersion())
 }
 
-const resolveContentBuildNumber = (): string => {
+const hasGitMetadata = (): boolean => {
+  const repoRoot = path.resolve(__dirname, '..')
+  return fs.existsSync(path.join(repoRoot, '.git'))
+}
+
+const resolveGitSha = (): string => {
+  const envSha = process.env.APP_GIT_SHA || process.env.GIT_SHA || process.env.VITE_GIT_SHA
+  if (envSha?.trim()) {
+    return envSha.trim().slice(0, 12)
+  }
+
   try {
     const repoRoot = path.resolve(__dirname, '..')
-    const fingerprintTargets = [
-      path.join(repoRoot, 'package.json'),
-      path.join(__dirname, 'package.json'),
-      path.join(__dirname, 'index.html'),
-      path.join(__dirname, 'vite.config.ts'),
-      path.join(__dirname, 'tailwind.config.js'),
-      path.join(__dirname, 'postcss.config.js'),
-      path.join(__dirname, 'src'),
-      path.join(__dirname, 'public'),
-    ]
-
-    const hash = crypto.createHash('sha1')
-    let hasInputs = false
-
-    for (const targetPath of fingerprintTargets) {
-      for (const filePath of collectFiles(targetPath)) {
-        hasInputs = true
-        hash.update(path.relative(repoRoot, filePath))
-        hash.update('\n')
-        hash.update(fs.readFileSync(filePath))
-        hash.update('\n')
-      }
+    if (!hasGitMetadata()) {
+      return 'local'
     }
 
-    return hasInputs ? hash.digest('hex').slice(0, 6).toUpperCase() : 'LOCAL'
+    return runGit(['rev-parse', '--short=7', 'HEAD'], repoRoot) || 'local'
   } catch {
-    return 'LOCAL'
+    return 'local'
   }
 }
 
-const resolveGitBuildNumber = (releaseVersion: string): string | null => {
+const resolveBuildNumber = (): string => {
+  const explicitBuildNumber = process.env.APP_BUILD_NUMBER
+    || process.env.BUILD_NUMBER
+    || process.env.GITHUB_RUN_NUMBER
+    || process.env.CI_PIPELINE_IID
+    || process.env.CI_PIPELINE_ID
+
+  if (explicitBuildNumber?.trim()) {
+    return explicitBuildNumber.trim()
+  }
+
   try {
     const repoRoot = path.resolve(__dirname, '..')
-    const gitDir = path.join(repoRoot, '.git')
-    if (!fs.existsSync(gitDir)) {
-      return null
+    if (!hasGitMetadata()) {
+      return ''
     }
 
-    const normalizedReleaseVersion = releaseVersion.replace(/^v/i, '')
-    const anchorCandidates = runGit([
-      'log',
-      '--reverse',
-      '--format=%H',
-      '-S',
-      `"version": "${normalizedReleaseVersion}"`,
-      '--',
-      'package.json',
-    ], repoRoot)
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-
-    if (anchorCandidates.length > 0) {
-      const anchorCommit = anchorCandidates[0]
-      const commitsSinceAnchor = runGit(['rev-list', '--count', `${anchorCommit}..HEAD`], repoRoot)
-      const sequence = Number.parseInt(commitsSinceAnchor || '0', 10) + 1
-      return normalizeBuildNumber(String(sequence))
-    }
-
-    const count = runGit(['rev-list', '--count', 'HEAD'], repoRoot)
-
-    return count ? normalizeBuildNumber(count) : null
+    return runGit(['rev-list', '--count', 'HEAD'], repoRoot)
   } catch {
-    return null
+    return ''
   }
-}
-
-const resolveBuildNumber = (releaseVersion: string): string => {
-  return resolveGitBuildNumber(releaseVersion) || resolveContentBuildNumber()
 }
 
 function buildMetaPlugin(): import('vite').Plugin {
@@ -153,13 +103,20 @@ function buildMetaPlugin(): import('vite').Plugin {
   const resolvedId = '\0' + virtualModuleId
 
   const computeMeta = () => {
-    const appVersion = process.env.VITE_APP_VERSION || `v${resolvePackageVersion()}`
-    const buildNumber = resolveBuildNumber(appVersion)
-    const buildVersion = createDisplayBuildVersion(appVersion, buildNumber)
+    const releaseVersion = resolveReleaseVersion()
+    const gitSha = resolveGitSha()
+    const buildNumber = resolveBuildNumber()
     const now = new Date()
-    const buildDate = now.toISOString().slice(0, 10)
-    const buildTime = now.toISOString().slice(11, 19)
-    return { appVersion, buildVersion, buildDate, buildTime }
+    const buildDate = (process.env.APP_BUILD_DATE || process.env.BUILD_DATE || now.toISOString().slice(0, 10)).trim()
+    const buildTime = (process.env.APP_BUILD_TIME || process.env.BUILD_TIME || now.toISOString().slice(11, 19)).trim()
+
+    return {
+      releaseVersion,
+      gitSha,
+      buildDate,
+      buildTime,
+      buildNumber,
+    }
   }
 
   return {
@@ -170,20 +127,8 @@ function buildMetaPlugin(): import('vite').Plugin {
     load(id) {
       if (id === resolvedId) {
         const meta = computeMeta()
-        return [
-          `export const buildMeta = ${JSON.stringify(meta)};`,
-          `if (import.meta.hot) {`,
-          `  import.meta.hot.on('build-meta:update', (data) => {`,
-          `    Object.assign(buildMeta, data);`,
-          `    window.dispatchEvent(new CustomEvent('build-meta:update', { detail: data }));`,
-          `  });`,
-          `}`,
-        ].join('\n')
+        return `export const buildMeta = ${JSON.stringify(meta)};`
       }
-    },
-    handleHotUpdate({ server }) {
-      const meta = computeMeta()
-      server.hot.send('build-meta:update', meta)
     },
   }
 }

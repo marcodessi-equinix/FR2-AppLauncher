@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "npm run build && node --test ./test/app.test.js",
-    "build": "tsc",
+    "check:node": "node ../scripts/check-node-version.js",
+    "test": "npm run build && node --test ./test/app.test.js ./test/auth.integration.test.js",
+    "build": "npm run check:node && tsc",
     "start": "node dist/app.js",
-    "dev": "nodemon -r dotenv/config src/app.ts dotenv_config_path=../.env"
+    "dev": "npm run check:node && nodemon -r dotenv/config src/app.ts dotenv_config_path=../.env"
   },
   "keywords": [],
   "author": "",

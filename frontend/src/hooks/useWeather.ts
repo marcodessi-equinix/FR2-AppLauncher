@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ComponentType, SVGProps } from 'react';
 import { getLocale, translate, useI18n } from '../lib/i18n';
 import type { PreferredLanguage } from '../store/useStore';
@@ -98,9 +98,10 @@ export const useWeather = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWeather = async () => {
+  const fetchWeather = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       // Frankfurt am Main Coordinates
       const lat = 50.1109;
       const lon = 8.6821;
@@ -210,14 +211,16 @@ export const useWeather = () => {
       setError('Failed to load weather data');
       setLoading(false);
     }
-  };
+  }, [language]);
 
   useEffect(() => {
-    fetchWeather();
+    void fetchWeather();
     // Auto-refresh every 30 mins
-    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    const interval = setInterval(() => {
+      void fetchWeather();
+    }, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [language]);
+  }, [fetchWeather]);
 
   return { weather, loading, error };
 };

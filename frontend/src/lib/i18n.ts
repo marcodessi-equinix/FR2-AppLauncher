@@ -51,7 +51,7 @@ const translations = {
 
     'dock.allApps': 'Alle Apps',
     'dock.favorites': 'Favoriten',
-    'dock.versionNotes': 'Versionshinweise und Build-Version anzeigen',
+    'dock.versionNotes': 'Versionshinweise und Build-Info anzeigen',
 
     'login.title': 'Admin Login',
     'login.close': 'Login-Dialog schließen',
@@ -135,15 +135,18 @@ const translations = {
     'info.cardTitlePlaceholder': 'Titel der Ankündigung...',
     'info.cardContentLabel': 'Inhalt',
     'info.cardContentPlaceholder': 'Ankündigungstext eingeben...',
-    'info.autoTranslateHint': 'Die andere Sprache wird beim Speichern automatisch übersetzt.',
-    'info.translatingAndSaving': 'Übersetzen & Speichern...',
+    'info.autoTranslateHint': 'Du bearbeitest nur die aktuelle Sprache. Fehlende Inhalte werden beim ersten Speichern übernommen.',
+    'info.translatingAndSaving': 'Speichern...',
     'info.saveError': 'Fehler beim Speichern',
 
     'version.releaseNotes': 'Versionshinweise',
     'version.closeWindow': 'Versionsfenster schließen',
     'version.close': 'Schließen',
-    'version.descriptionReleaseOnly': 'Release-Stand: {releaseVersion}. Die Versionshistorie unten pflegst du nur für größere Updates manuell. Build-Datum: {buildDate}',
-    'version.descriptionWithBuild': 'Release-Stand: {releaseVersion}. Build-Stand: {buildVersion}. Die Versionshistorie unten pflegst du nur für größere Updates manuell. Build-Datum: {buildDate}',
+    'version.description': 'Release-Stand: {releaseVersion}. Git-SHA: {gitSha}. Build-Datum: {buildDate}. Die Versionshistorie unten pflegst du nur für größere Updates manuell.',
+    'version.releaseLabel': 'Release',
+    'version.gitShaLabel': 'Git SHA',
+    'version.buildDateLabel': 'Build-Datum',
+    'version.buildNumberLabel': 'Build-Nummer',
 
     'iconPicker.libraryTab': 'Bibliothek (alle Icons)',
     'iconPicker.uploadTab': 'Eigener Upload',
@@ -276,7 +279,7 @@ const translations = {
 
     'dock.allApps': 'All Apps',
     'dock.favorites': 'Favorites',
-    'dock.versionNotes': 'Show release notes and build version',
+    'dock.versionNotes': 'Show release notes and build info',
 
     'login.title': 'Admin Login',
     'login.close': 'Close login modal',
@@ -360,15 +363,18 @@ const translations = {
     'info.cardTitlePlaceholder': 'Announcement title...',
     'info.cardContentLabel': 'Content',
     'info.cardContentPlaceholder': 'Enter announcement text...',
-    'info.autoTranslateHint': 'The other language will be auto-translated on save.',
-    'info.translatingAndSaving': 'Translating & Saving...',
+    'info.autoTranslateHint': 'You are editing only the current language. Missing content is copied on the first save.',
+    'info.translatingAndSaving': 'Saving...',
     'info.saveError': 'Failed to save',
 
     'version.releaseNotes': 'Release Notes',
     'version.closeWindow': 'Close version dialog',
     'version.close': 'Close',
-    'version.descriptionReleaseOnly': 'Release version: {releaseVersion}. The history below is maintained manually for larger updates only. Build date: {buildDate}',
-    'version.descriptionWithBuild': 'Release version: {releaseVersion}. Build version: {buildVersion}. The history below is maintained manually for larger updates only. Build date: {buildDate}',
+    'version.description': 'Release version: {releaseVersion}. Git SHA: {gitSha}. Build date: {buildDate}. The history below is maintained manually for larger updates only.',
+    'version.releaseLabel': 'Release',
+    'version.gitShaLabel': 'Git SHA',
+    'version.buildDateLabel': 'Build Date',
+    'version.buildNumberLabel': 'Build Number',
 
     'iconPicker.libraryTab': 'Library (all icons)',
     'iconPicker.uploadTab': 'Custom upload',

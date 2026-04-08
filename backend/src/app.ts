@@ -16,6 +16,7 @@ import reorderRoutes from './routes/reorder';
 import adminRoutes from './routes/admin';
 import favoriteRoutes from './routes/favorites';
 import clientRoutes from './routes/clients';
+import { getAllowedOrigins, getConfiguredOrigins, normalizeOrigin } from './lib/originPolicy';
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -24,21 +25,6 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const ALLOW_INSECURE_DEFAULTS = process.env.ALLOW_INSECURE_DEFAULTS === 'true';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const COOKIE_SECURE_MODE = (process.env.COOKIE_SECURE || 'auto').trim().toLowerCase();
-const explicitAllowedOrigins = (process.env.FRONTEND_URL || '')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const devAllowedOrigins = [
-  'http://localhost:9020',
-  'http://127.0.0.1:9020',
-  'http://localhost:5001',
-  'http://127.0.0.1:5001',
-  'http://localhost:5174',
-  'http://127.0.0.1:5174',
-  'http://localhost:5175',
-  'http://127.0.0.1:5175',
-];
-
 function isWeakSecret(secret: string): boolean {
   const blocked = new Set([
     '',
@@ -65,35 +51,12 @@ function warnOnSuspiciousConfig(): void {
     console.warn(`Unsupported COOKIE_SECURE value '${process.env.COOKIE_SECURE}'. Expected auto, true, or false. Falling back to automatic proxy detection.`);
   }
 
-  for (const origin of explicitAllowedOrigins) {
+  for (const origin of getConfiguredOrigins()) {
     const normalizedOrigin = normalizeOrigin(origin).toLowerCase();
     if (COOKIE_SECURE_MODE === 'true' && normalizedOrigin.startsWith('http://')) {
       console.warn(`COOKIE_SECURE=true conflicts with non-HTTPS FRONTEND_URL '${origin}'. Cookies will follow the actual proxy/request protocol instead.`);
     }
   }
-}
-
-function normalizeOrigin(origin: string): string {
-  return origin.trim().replace(/\/+$/, '');
-}
-
-function getForwardedValue(value: string | string[] | undefined): string | null {
-  if (!value) return null;
-  const raw = Array.isArray(value) ? value[0] : value;
-  const normalized = raw.split(',')[0].trim();
-  return normalized || null;
-}
-
-function getInferredOrigins(req: express.Request): string[] {
-  const host = getForwardedValue(req.headers['x-forwarded-host']) || getForwardedValue(req.headers.host);
-  if (!host) return [];
-
-  const proto = getForwardedValue(req.headers['x-forwarded-proto']);
-  if (proto) {
-    return [`${proto}://${host}`];
-  }
-
-  return [`http://${host}`, `https://${host}`];
 }
 
 export function createApp(): express.Express {
@@ -112,11 +75,7 @@ export function createApp(): express.Express {
       return;
     }
 
-    const allowedOrigins = new Set([
-      ...explicitAllowedOrigins.map(normalizeOrigin),
-      ...getInferredOrigins(req).map(normalizeOrigin),
-      ...(NODE_ENV === 'production' ? [] : devAllowedOrigins.map(normalizeOrigin)),
-    ]);
+    const allowedOrigins = getAllowedOrigins(req, NODE_ENV);
 
     if (allowedOrigins.has(requestOrigin)) {
       callback(null, { origin: requestOrigin, credentials: true });

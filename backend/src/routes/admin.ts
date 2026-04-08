@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { parseBookmarksFromHtml, saveImportedData, ImportPreviewData } from '../services/bookmarkService';
 import { requireAdmin } from '../middleware/auth';
+import { requireTrustedOrigin } from '../middleware/trustedOrigin';
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ const upload = multer({
 
 // POST /api/admin/parse-bookmarks
 // Returns JSON structure of bookmarks for preview
-router.post('/parse-bookmarks', requireAdmin, upload.single('file'), (req, res) => {
+router.post('/parse-bookmarks', requireTrustedOrigin, requireAdmin, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -33,7 +34,7 @@ router.post('/parse-bookmarks', requireAdmin, upload.single('file'), (req, res) 
 // POST /api/admin/execute-import
 // Saves the SELECTED structure (groups/links)
 // Header "x-keep-existing" optional
-router.post('/execute-import', requireAdmin, (req, res) => {
+router.post('/execute-import', requireTrustedOrigin, requireAdmin, (req, res) => {
     try {
         const data = req.body as ImportPreviewData;
         const keepExisting = req.headers['x-keep-existing'] === 'true';

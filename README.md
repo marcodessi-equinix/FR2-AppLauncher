@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/logo.png" alt="AppLauncher Logo" width="120" />
+  <img src="frontend/public/FR2%20App%20Launcher%20logo%20preview.png" alt="FR2 App Launcher Preview" width="100%" />
 </p>
 
 <h1 align="center">AppLauncher</h1>
@@ -23,7 +23,7 @@
 
 ## Overview
 
-AppLauncher is a lightweight, self-hosted web application for organizing and sharing internal links across a team. It runs as a Docker stack with zero external dependencies — just bring your own container runtime.
+AppLauncher is a lightweight, self-hosted web application for organizing and sharing internal links across a team. The core dashboard runs entirely in your own stack; optional convenience features such as weather data and icon-library search can talk to external providers.
 
 **Key features:**
 
@@ -32,13 +32,14 @@ AppLauncher is a lightweight, self-hosted web application for organizing and sha
 - Per-user favorites via browser fingerprinting (no accounts needed for viewers)
 - System info widget with rich-text editor
 - Dark / light theme with language toggle (EN/DE)
-- Automatic build versioning from Git history
+- Central release version with automatic Git/build metadata in the UI
 - Persistent data via Docker volumes — survives container rebuilds
+- Local-only storage for admin content edits — no browser-side auto-translation requests
 
 ## Preview
 
 <p align="center">
-  <img src="frontend/public/preview.png" alt="AppLauncher Preview" width="100%" />
+  <img src="frontend/public/FR2%20App%20Launcher%20logo%20full.png" alt="FR2 App Launcher Full Logo" width="100%" />
 </p>
 
 ## Quick Start
@@ -195,6 +196,8 @@ Stops the stack, restores data, then you restart manually.
 
 Requires **Node.js 22+**.
 
+If `npm run dev` starts the frontend but the backend stays unreachable, check `node -v` first. The backend uses the built-in `node:sqlite` module and will crash immediately on Node 20 with `No such built-in module: node:sqlite`.
+
 ```bash
 npm install
 npm run dev
@@ -274,12 +277,20 @@ The frontend container automatically joins your proxy's Docker network so the pr
 ## Security
 
 - Admin sessions use JWT tokens stored in HTTP-only cookies.
+- State-changing admin requests are restricted to trusted same-origin browser requests.
 - Rate limiting on login attempts (10 per 15 minutes per IP).
 - Exclusive admin session lock — only one admin can be active at a time.
 - HTML input is sanitized server-side via `sanitize-html`.
 - File uploads are restricted to image types with size limits.
 - The backend is never exposed outside the Docker network.
 - The app refuses to start with weak credentials in production mode.
+
+## External Services
+
+- The dashboard itself is self-hosted.
+- The weather widget fetches forecast data from Open-Meteo.
+- Icon library search and some icon rendering paths can use Iconify's public API.
+- If you want a fully isolated deployment, you can disable those convenience features in your own fork or network policy.
 
 ## License
 

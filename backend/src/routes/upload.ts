@@ -4,34 +4,14 @@ import path from 'path';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { requireAdmin } from '../middleware/auth';
+import { allowedImageExtensions } from '../lib/iconPolicy';
+import { requireTrustedOrigin } from '../middleware/trustedOrigin';
 
 const router = express.Router();
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, '../../uploads/icons');
 const iconMetadataPath = path.join(uploadDir, '.metadata.json');
-const allowedExtensions = new Set([
-  '.apng',
-  '.avif',
-  '.bmp',
-  '.dib',
-  '.gif',
-  '.heic',
-  '.heif',
-  '.ico',
-  '.jfif',
-  '.jpeg',
-  '.jpg',
-  '.pjp',
-  '.pjpeg',
-  '.png',
-  '.svg',
-  '.svgz',
-  '.tif',
-  '.tiff',
-  '.webp'
-]);
-
 interface UploadedIconMetadata {
   originalName: string;
   displayName: string;
@@ -90,7 +70,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
   const fileExtension = path.extname(file.originalname || '').toLowerCase();
   const isImageMimeType = String(file.mimetype || '').toLowerCase().startsWith('image/');
 
-  if (isImageMimeType || allowedExtensions.has(fileExtension)) {
+  if (isImageMimeType || allowedImageExtensions.has(fileExtension)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file type. Only image uploads are allowed.'), false);
@@ -105,7 +85,7 @@ const upload = multer({
   }
 });
 
-router.post(['/', '/icon'], requireAdmin, upload.single('file'), (req, res) => {
+router.post(['/', '/icon'], requireTrustedOrigin, requireAdmin, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -147,7 +127,7 @@ router.get('/', requireAdmin, async (req, res) => {
     const metadata = readIconMetadata();
     const files = await fsPromises.readdir(uploadDir);
     const iconPromises = files
-      .filter((file) => allowedExtensions.has(path.extname(file).toLowerCase()))
+      .filter((file) => allowedImageExtensions.has(path.extname(file).toLowerCase()))
       .map(async (file) => {
         const filePath = path.join(uploadDir, file);
         const stat = await fsPromises.stat(filePath);
@@ -172,7 +152,7 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:filename', requireAdmin, (req, res) => {
+router.delete('/:filename', requireTrustedOrigin, requireAdmin, (req, res) => {
   try {
     const filenameParam = req.params.filename;
     const requestedFilename = decodeURIComponent(
@@ -191,7 +171,7 @@ router.delete('/:filename', requireAdmin, (req, res) => {
       return res.status(403).json({ error: 'Invalid file path' });
     }
 
-    if (!fs.existsSync(filePath) || !allowedExtensions.has(path.extname(safeFilename).toLowerCase())) {
+    if (!fs.existsSync(filePath) || !allowedImageExtensions.has(path.extname(safeFilename).toLowerCase())) {
       return res.status(404).json({ error: 'Icon not found' });
     }
 

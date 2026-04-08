@@ -115,8 +115,8 @@ export const Header: React.FC = () => {
             <div className="flex items-center gap-4 shrink-0 xl:justify-self-start">
               <div className="brand-lockup flex items-center gap-4">
                 <img 
-                  src="/logo.png" 
-                  alt="AppLauncher" 
+                  src="/FR2%20App%20Launcher%20logo.png" 
+                  alt="FR2 App Launcher" 
                   className="h-10 w-auto object-contain drop-shadow-[0_16px_32px_hsl(var(--glow)/0.28)] md:h-11 lg:h-12"
                 />
                 <div className="flex flex-col">

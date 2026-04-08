@@ -22,11 +22,9 @@ const DynamicIconComponent: React.FC<DynamicIconProps> = ({
 }) => {
   if (!icon) return <>{fallback}</>;
 
-  // Check for image assets (Uploads, remote URLs, safe data-URIs)
-  const isImage = icon.startsWith('/') || icon.startsWith('http');
-  const isSafeDataUri = icon.startsWith('data:image/');
+  const isUploadedImage = icon.startsWith('/uploads/icons/');
   
-  if (isImage || isSafeDataUri) {
+  if (isUploadedImage) {
     return (
       <img 
         src={icon} 
@@ -36,8 +34,9 @@ const DynamicIconComponent: React.FC<DynamicIconProps> = ({
     );
   }
 
-  // Reject non-image data: URIs entirely
-  if (icon.startsWith('data:')) {
+  // Reject remote URLs and arbitrary data URIs. Icons should come from
+  // vetted local uploads or a curated icon identifier only.
+  if (icon.startsWith('/') || icon.startsWith('http') || icon.startsWith('data:')) {
     return <>{fallback}</>;
   }
 

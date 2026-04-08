@@ -34,59 +34,30 @@ export const ManageInfoCardModal: React.FC<ManageInfoCardModalProps> = ({
   const [content, setContent] = useState(card ? getCardContent(card, language) : '');
   const [isSaving, setIsSaving] = useState(false);
 
-  const prevCardId = React.useRef(card?.id);
-  if (prevCardId.current !== card?.id) {
-    prevCardId.current = card?.id;
+  React.useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
     setTitle(card ? getCardTitle(card, language) : '');
     setContent(card ? getCardContent(card, language) : '');
-  }
-
-  /** Strip HTML tags for plain-text translation */
-  const stripHtml = (html: string): string => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    return div.textContent || div.innerText || '';
-  };
-
-  /** Translate via MyMemory API (runs in browser — always has internet) */
-  const translateText = async (text: string, from: 'de' | 'en', to: 'de' | 'en'): Promise<string | null> => {
-    const plain = stripHtml(text).trim().slice(0, 500);
-    if (!plain) return null;
-    try {
-      const langPair = `${from}|${to}`;
-      const encoded = encodeURIComponent(plain);
-      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encoded}&langpair=${langPair}`);
-      const data = await res.json();
-      if (data.responseStatus === 200 && data.responseData?.translatedText) {
-        const translated = data.responseData.translatedText as string;
-        if (translated.startsWith('MYMEMORY WARNING')) return null;
-        return translated;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
+  }, [card, isOpen, language]);
 
   const handleSave = async () => {
     if (!title.trim() || isSaving) return;
     setIsSaving(true);
 
     const sourceLang = language;
-    const targetLang: 'de' | 'en' = language === 'de' ? 'en' : 'de';
-
-    // Translate title and content in the browser before saving
-    const [translatedTitle, translatedContent] = await Promise.all([
-      translateText(title.trim(), sourceLang, targetLang),
-      translateText(content, sourceLang, targetLang),
-    ]);
+    const baseTitle = title.trim();
+    const fallbackTitle = baseTitle;
+    const fallbackContent = content;
 
     const newCard: InfoCard = {
       id: card?.id || crypto.randomUUID(),
-      title_de: sourceLang === 'de' ? title.trim() : (translatedTitle || title.trim()),
-      title_en: sourceLang === 'en' ? title.trim() : (translatedTitle || title.trim()),
-      content_de: sourceLang === 'de' ? content : (translatedContent ? `<p>${translatedContent}</p>` : content),
-      content_en: sourceLang === 'en' ? content : (translatedContent ? `<p>${translatedContent}</p>` : content),
+      title_de: sourceLang === 'de' ? baseTitle : (card?.title_de || fallbackTitle),
+      title_en: sourceLang === 'en' ? baseTitle : (card?.title_en || fallbackTitle),
+      content_de: sourceLang === 'de' ? content : (card?.content_de || fallbackContent),
+      content_en: sourceLang === 'en' ? content : (card?.content_en || fallbackContent),
       createdAt: card?.createdAt || new Date().toISOString(),
     };
 

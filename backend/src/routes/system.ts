@@ -2,6 +2,7 @@ import express from 'express';
 import db from '../db/index';
 import { requireAdmin } from '../middleware/auth';
 import sanitizeHtml from 'sanitize-html';
+import { requireTrustedOrigin } from '../middleware/trustedOrigin';
 
 const router = express.Router();
 
@@ -28,7 +29,7 @@ router.get('/info', (req, res) => {
 });
 
 // Update System Info (Admin)
-router.post('/info', requireAdmin, (req, res) => {
+router.post('/info', requireTrustedOrigin, requireAdmin, (req, res) => {
   const { content } = req.body;
   try {
     const safeContent = sanitizeHtml(String(content || ''), {
@@ -70,7 +71,7 @@ router.get('/info-cards', (req, res) => {
   }
 });
 
-router.post('/info-cards', requireAdmin, (req, res) => {
+router.post('/info-cards', requireTrustedOrigin, requireAdmin, (req, res) => {
   const { cards } = req.body;
   try {
     if (!Array.isArray(cards)) {

@@ -1,52 +1,41 @@
-import { useState, useEffect, useSyncExternalStore } from 'react';
 import { buildMeta } from 'virtual:build-meta';
-import { getLatestChangelogEntry } from './changelog';
 
 export interface AppVersionInfo {
   releaseVersion: string;
-  buildVersion: string;
+  gitSha: string;
   buildDate: string;
   buildTime: string;
+  buildNumber: string;
+  displayVersion: string;
 }
 
-let currentMeta = { ...buildMeta };
-const listeners = new Set<() => void>();
+const currentMeta = { ...buildMeta };
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('build-meta:update', ((e: CustomEvent) => {
-    currentMeta = { ...e.detail };
-    listeners.forEach((fn) => fn());
-  }) as EventListener);
-}
-
-const subscribe = (cb: () => void) => {
-  listeners.add(cb);
-  return () => { listeners.delete(cb); };
+const createDisplayVersion = (meta: typeof currentMeta): string => {
+  return [meta.releaseVersion, meta.gitSha, meta.buildDate]
+    .filter(Boolean)
+    .join(' | ');
 };
 
-const getSnapshot = () => currentMeta;
-
 export const useAppVersion = (): AppVersionInfo => {
-  const meta = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const releaseVersion = getLatestChangelogEntry()?.version || meta.appVersion || 'v0.1.0';
-  const buildVersion = meta.buildVersion || releaseVersion;
-
   return {
-    releaseVersion,
-    buildVersion,
-    buildDate: meta.buildDate,
-    buildTime: meta.buildTime || '',
+    releaseVersion: currentMeta.releaseVersion || 'v0.1.0',
+    gitSha: currentMeta.gitSha || 'local',
+    buildDate: currentMeta.buildDate,
+    buildTime: currentMeta.buildTime || '',
+    buildNumber: currentMeta.buildNumber || '',
+    displayVersion: createDisplayVersion(currentMeta),
   };
 };
 
 /** @deprecated Use useAppVersion() hook instead */
 export const getAppVersionInfo = (): AppVersionInfo => {
-  const releaseVersion = getLatestChangelogEntry()?.version || currentMeta.appVersion || 'v0.1.0';
-  const buildVersion = currentMeta.buildVersion || releaseVersion;
   return {
-    releaseVersion,
-    buildVersion,
+    releaseVersion: currentMeta.releaseVersion || 'v0.1.0',
+    gitSha: currentMeta.gitSha || 'local',
     buildDate: currentMeta.buildDate,
     buildTime: currentMeta.buildTime || '',
+    buildNumber: currentMeta.buildNumber || '',
+    displayVersion: createDisplayVersion(currentMeta),
   };
 };

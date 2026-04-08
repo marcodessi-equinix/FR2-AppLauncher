@@ -2,13 +2,18 @@ import express from 'express';
 import db from '../db/index';
 import { requireAdmin } from '../middleware/auth';
 import { z } from 'zod';
+import { isAllowedIconValue, normalizeStoredIconValue } from '../lib/iconPolicy';
+import { requireTrustedOrigin } from '../middleware/trustedOrigin';
 
 const router = express.Router();
 
 const GroupSchema = z.object({
-  title: z.string().min(1),
-  order: z.number().optional().default(0),
-  icon: z.string().optional(),
+  title: z.string().trim().min(1).max(80),
+  order: z.coerce.number().int().min(0).max(10000).optional().default(0),
+  icon: z.preprocess(
+    (value) => typeof value === 'string' ? value.trim() : value,
+    z.string().max(160).optional()
+  ).refine((value) => value === undefined || isAllowedIconValue(value), { message: 'Invalid icon value' }),
 });
 
 // GET all groups
@@ -18,17 +23,18 @@ router.get('/', (req, res) => {
 });
 
 // POST create group (Admin only)
-router.post('/', requireAdmin, (req, res) => {
+router.post('/', requireTrustedOrigin, requireAdmin, (req, res) => {
   const result = GroupSchema.safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({ error: result.error });
   }
 
   const { title, order, icon } = result.data;
+  const normalizedIcon = normalizeStoredIconValue(icon);
   
   try {
     const stmt = db.prepare('INSERT INTO groups (title, "order", icon) VALUES (?, ?, ?)');
-    const info = stmt.run(title, order, icon || null);
+    const info = stmt.run(title, order, normalizedIcon || null);
     
     // Log audit
     db.prepare('INSERT INTO audit_logs (action, details) VALUES (?, ?)').run(
@@ -36,14 +42,14 @@ router.post('/', requireAdmin, (req, res) => {
       JSON.stringify({ id: info.lastInsertRowid, title })
     );
 
-    res.json({ id: info.lastInsertRowid, title, order, icon });
+    res.json({ id: info.lastInsertRowid, title, order, icon: normalizedIcon });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create group' });
   }
 });
 
 // PUT update group
-router.put('/:id', requireAdmin, (req, res) => {
+router.put('/:id', requireTrustedOrigin, requireAdmin, (req, res) => {
   const idResult = z.coerce.number().int().positive().safeParse(req.params.id);
   if (!idResult.success) {
     return res.status(400).json({ error: 'Invalid group id' });
@@ -57,10 +63,11 @@ router.put('/:id', requireAdmin, (req, res) => {
   }
 
   const { title, order, icon } = result.data;
+  const normalizedIcon = normalizeStoredIconValue(icon);
 
   try {
     const stmt = db.prepare('UPDATE groups SET title = ?, "order" = ?, icon = ? WHERE id = ?');
-    const info = stmt.run(title, order, icon || null, id);
+    const info = stmt.run(title, order, normalizedIcon || null, id);
 
     if (info.changes === 0) {
       return res.status(404).json({ error: 'Group not found' });
@@ -71,14 +78,14 @@ router.put('/:id', requireAdmin, (req, res) => {
       JSON.stringify({ id, title })
     );
 
-    res.json({ id: Number(id), title, order, icon });
+    res.json({ id: Number(id), title, order, icon: normalizedIcon });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update group' });
   }
 });
 
 // DELETE group
-router.delete('/:id', requireAdmin, (req, res) => {
+router.delete('/:id', requireTrustedOrigin, requireAdmin, (req, res) => {
   const idResult = z.coerce.number().int().positive().safeParse(req.params.id);
   if (!idResult.success) {
     return res.status(400).json({ error: 'Invalid group id' });

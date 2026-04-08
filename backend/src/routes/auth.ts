@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { adminSessionService } from '../services/sessionService';
+import { requireTrustedOrigin } from '../middleware/trustedOrigin';
 
 const router = express.Router();
 
@@ -36,7 +37,7 @@ function getAuthCookieBaseOptions(req: express.Request): express.CookieOptions {
   return {
     httpOnly: true,
     secure,
-    sameSite: secure ? 'none' : 'lax',
+    sameSite: 'lax',
     path: '/',
   };
 }
@@ -126,7 +127,7 @@ router.post('/login', async (req, res) => {
   return res.json({ success: true, sessionId });
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', requireTrustedOrigin, (req, res) => {
   const token = req.cookies.auth_token;
   if (token) {
     try {
@@ -138,7 +139,7 @@ router.post('/logout', (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/heartbeat', (req, res) => {
+router.post('/heartbeat', requireTrustedOrigin, (req, res) => {
   const token = req.cookies.auth_token;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   

@@ -2,9 +2,10 @@
 
 declare module 'virtual:build-meta' {
   export const buildMeta: {
-    appVersion: string;
-    buildVersion: string;
+    releaseVersion: string;
+    gitSha: string;
     buildDate: string;
     buildTime: string;
+    buildNumber: string;
   };
 }
