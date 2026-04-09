@@ -3,6 +3,7 @@ import db from '../db/index';
 import { requireAdmin } from '../middleware/auth';
 import sanitizeHtml from 'sanitize-html';
 import { requireTrustedOrigin } from '../middleware/trustedOrigin';
+import { getBuildInfo } from '../config/buildInfo';
 
 const router = express.Router();
 
@@ -17,6 +18,23 @@ const SANITIZE_OPTS = {
   allowedSchemes: ['http', 'https', 'mailto'],
   disallowedTagsMode: 'discard' as const,
 };
+
+const readStoredJsonArray = (rawValue: string | undefined) => {
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+router.get('/version', (req, res) => {
+  res.json(getBuildInfo());
+});
 
 // Get System Info (Public or Protected depending on use case, let's make it public for dashboard view)
 router.get('/info', (req, res) => {
@@ -55,7 +73,7 @@ router.post('/info', requireTrustedOrigin, requireAdmin, (req, res) => {
 router.get('/info-cards', (req, res) => {
   try {
     const row = db.prepare('SELECT value FROM config WHERE key = ?').get('info_cards') as { value: string } | undefined;
-    const cards = row ? JSON.parse(row.value) : [];
+    const cards = readStoredJsonArray(row?.value);
     // Migrate old-format cards on the fly (title/content → title_de/title_en/content_de/content_en)
     const migrated = cards.map((card: Record<string, unknown>) => ({
       id: card.id || '',

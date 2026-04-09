@@ -176,8 +176,8 @@ function AppContent() {
           cameFromSplash && 'splash-dashboard-reveal',
         )}
       >
-        <Layout>
-          <DashboardGrid />
+        <Layout autoOpenInfoEnabled={!showIntro}>
+          <DashboardGrid autoOpenLinkChangesEnabled={!showIntro} />
         </Layout>
       </div>
       {showIntro ? <SplashIntro onExitStart={handleSplashExitStart} onComplete={handleSplashComplete} /> : null}

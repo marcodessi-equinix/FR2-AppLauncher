@@ -10,32 +10,38 @@ export interface AppVersionInfo {
 }
 
 const currentMeta = { ...buildMeta };
+const FALLBACK_RELEASE_VERSION = 'v0.1.0';
+const FALLBACK_GIT_SHA = 'local';
+
+const normalizeMetaValue = (value: string | undefined, fallback = ''): string => {
+  const trimmed = value?.trim() || '';
+  return trimmed || fallback;
+};
 
 const createDisplayVersion = (meta: typeof currentMeta): string => {
-  return [meta.releaseVersion, meta.gitSha, meta.buildDate]
+  return [
+    normalizeMetaValue(meta.releaseVersion, FALLBACK_RELEASE_VERSION),
+    normalizeMetaValue(meta.gitSha, FALLBACK_GIT_SHA),
+    normalizeMetaValue(meta.buildDate),
+  ]
     .filter(Boolean)
     .join(' | ');
 };
 
+const createVersionInfo = (): AppVersionInfo => ({
+  releaseVersion: normalizeMetaValue(currentMeta.releaseVersion, FALLBACK_RELEASE_VERSION),
+  gitSha: normalizeMetaValue(currentMeta.gitSha, FALLBACK_GIT_SHA),
+  buildDate: normalizeMetaValue(currentMeta.buildDate),
+  buildTime: normalizeMetaValue(currentMeta.buildTime),
+  buildNumber: normalizeMetaValue(currentMeta.buildNumber),
+  displayVersion: createDisplayVersion(currentMeta),
+});
+
 export const useAppVersion = (): AppVersionInfo => {
-  return {
-    releaseVersion: currentMeta.releaseVersion || 'v0.1.0',
-    gitSha: currentMeta.gitSha || 'local',
-    buildDate: currentMeta.buildDate,
-    buildTime: currentMeta.buildTime || '',
-    buildNumber: currentMeta.buildNumber || '',
-    displayVersion: createDisplayVersion(currentMeta),
-  };
+  return createVersionInfo();
 };
 
 /** @deprecated Use useAppVersion() hook instead */
 export const getAppVersionInfo = (): AppVersionInfo => {
-  return {
-    releaseVersion: currentMeta.releaseVersion || 'v0.1.0',
-    gitSha: currentMeta.gitSha || 'local',
-    buildDate: currentMeta.buildDate,
-    buildTime: currentMeta.buildTime || '',
-    buildNumber: currentMeta.buildNumber || '',
-    displayVersion: createDisplayVersion(currentMeta),
-  };
+  return createVersionInfo();
 };

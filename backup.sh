@@ -1,35 +1,66 @@
 #!/bin/bash
-# AppLauncher Backup Script
-# This script creates a compressed archive of the SQLite database and the uploads directory.
+# AppLauncher volume backup script.
+# Creates a tar.gz archive from the Docker/Podman volumes used by the stack.
 
-# Variables
+set -euo pipefail
+
+STACK_NAME="applauncher"
+DATA_VOLUME="${STACK_NAME}_applauncher-data"
+UPLOADS_VOLUME="${STACK_NAME}_applauncher-uploads"
 BACKUP_DIR="./backups"
-DATA_DIR="./data"
-UPLOADS_DIR="./uploads"
-
-# Create backup directory if it doesn't exist
-mkdir -p "$BACKUP_DIR"
-
-# Generate a timestamp for the filename
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="$BACKUP_DIR/applauncher_backup_$TIMESTAMP.tar.gz"
+BACKUP_FILE="applauncher_backup_${TIMESTAMP}.tar.gz"
 
-echo "Starting AppLauncher backup..."
+COMPOSE_CMD=()
+CONTAINER_BIN=""
 
-# Verify source directories exist
-if [ ! -d "$DATA_DIR" ] || [ ! -d "$UPLOADS_DIR" ]; then
-    echo "Error: Source directories ($DATA_DIR or $UPLOADS_DIR) not found. Are you running this from the root directory?"
+detect_runtime() {
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+        CONTAINER_BIN="docker"
+        COMPOSE_CMD=(docker compose)
+        return
+    fi
+
+    if command -v podman >/dev/null 2>&1; then
+        CONTAINER_BIN="podman"
+        if command -v podman-compose >/dev/null 2>&1; then
+            COMPOSE_CMD=(podman-compose)
+        else
+            COMPOSE_CMD=(podman compose)
+        fi
+        return
+    fi
+
+    echo "Error: Neither Docker nor Podman is available."
     exit 1
-fi
+}
 
-# Create the archive
-if tar -czf "$BACKUP_FILE" "$DATA_DIR" "$UPLOADS_DIR"; then
-    echo "Backup completed successfully!"
-    echo "Saved to: $BACKUP_FILE"
-    
-    # Optional: Keep only the 7 most recent backups
-    # ls -1t "$BACKUP_DIR"/applauncher_backup_*.tar.gz | tail -n +8 | xargs -r rm --
-else
-    echo "Error: Backup failed."
-    exit 1
-fi
+require_volume() {
+    local volume_name="$1"
+    if ! "$CONTAINER_BIN" volume inspect "$volume_name" >/dev/null 2>&1; then
+        echo "Error: Required volume '$volume_name' was not found."
+        echo "Start the stack once before creating backups."
+        exit 1
+    fi
+}
+
+detect_runtime
+mkdir -p "$BACKUP_DIR"
+BACKUP_DIR_ABS=$(cd "$BACKUP_DIR" && pwd)
+
+require_volume "$DATA_VOLUME"
+require_volume "$UPLOADS_VOLUME"
+
+echo "Creating backup from volumes:"
+echo "  - $DATA_VOLUME"
+echo "  - $UPLOADS_VOLUME"
+
+"$CONTAINER_BIN" run --rm \
+    -v "${DATA_VOLUME}:/source/data:ro" \
+    -v "${UPLOADS_VOLUME}:/source/uploads:ro" \
+    -v "${BACKUP_DIR_ABS}:/backup" \
+    alpine:3.20 \
+    sh -c "tar -czf /backup/${BACKUP_FILE} -C /source data uploads"
+
+echo "Backup completed successfully."
+echo "Saved to: ${BACKUP_DIR}/${BACKUP_FILE}"

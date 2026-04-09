@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'path';
 import fs from 'fs';
+import { runtimeConfig } from '../config/runtime';
 
 type SqlParameter = string | number | bigint | Uint8Array | null;
 
@@ -70,14 +71,14 @@ function createDatabase(filePath: string): AppDatabase {
     };
 }
 
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/applauncher.db');
+const dbPath = runtimeConfig.databasePath;
 const dbDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../uploads/icons');
+const uploadDir = runtimeConfig.uploadIconsDir;
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }

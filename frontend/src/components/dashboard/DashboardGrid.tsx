@@ -7,8 +7,19 @@ import { LinkCard } from './LinkCard';
 import { useStore } from '../../store/useStore';
 import { Loader2, AlertCircle, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { removeGroupFromDashboard, removeLinkFromDashboard } from '../../lib/dashboardData';
+import {
+  areLinkAnnouncementSnapshotsEqual,
+  createLinkAnnouncementSnapshot,
+  diffLinkAnnouncementSnapshots,
+  readStoredLinkAnnouncementSnapshot,
+  storeLinkAnnouncementSnapshot,
+  type LinkAnnouncementDiff,
+} from '../../lib/linkAnnouncements';
 
 import { Button } from '../ui/button';
+import { BulkLinkIconModal } from './BulkLinkIconModal';
+import { DeleteConfirmDialog } from '../layout/DeleteConfirmDialog';
+import { LinkChangesDialog } from '../layout/LinkChangesDialog';
 import {
   CollisionDetection,
   DndContext,
@@ -36,6 +47,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useI18n } from '../../lib/i18n';
 import { loadIcons } from '@iconify/react';
+import {
+  DASHBOARD_ALL_CATEGORY,
+  DASHBOARD_FAVORITES_CATEGORY,
+  getGroupIdFromCategory,
+} from '../../lib/dashboardCategories';
 
 const ManageGroupModal = React.lazy(async () => {
   const module = await import('../admin/ManageGroupModal');
@@ -96,18 +112,24 @@ const FavoritesPanel: React.FC<{
   isAdmin: boolean;
   editMode: boolean;
   onEditLink: (link: Link) => void;
-  onDeleteLink: (id: number) => void;
-}> = ({ activeCategory, allLinks, isAdmin, editMode, onEditLink, onDeleteLink }) => {
+  onDeleteLink: (link: Link) => void;
+  selectedLinkIds?: Set<number>;
+  onToggleLinkSelection?: (link: Link) => void;
+}> = ({ activeCategory, allLinks, isAdmin, editMode, onEditLink, onDeleteLink, selectedLinkIds, onToggleLinkSelection }) => {
   const { t } = useI18n();
   const favorites = useStore((state) => state.favorites);
   const [favoritesExpanded, setFavoritesExpanded] = useState(true);
+  const linkMap = React.useMemo(
+    () => new Map(allLinks.map((link) => [link.id, link])),
+    [allLinks],
+  );
 
-  if (!(activeCategory === 'all' || activeCategory === 'favorites' || !activeCategory) || favorites.length === 0) {
+  if (!(activeCategory === DASHBOARD_ALL_CATEGORY || activeCategory === DASHBOARD_FAVORITES_CATEGORY || !activeCategory) || favorites.length === 0) {
     return null;
   }
 
   const validFavorites = favorites
-    .map((favId) => allLinks.find((link) => link.id === favId))
+    .map((favId) => linkMap.get(favId))
     .filter(Boolean) as Link[];
 
   if (validFavorites.length === 0) {
@@ -144,8 +166,10 @@ const FavoritesPanel: React.FC<{
               link={link}
               isAdmin={isAdmin}
               editMode={editMode}
+              isSelected={selectedLinkIds?.has(link.id)}
               onEdit={onEditLink}
               onDelete={onDeleteLink}
+              onToggleSelect={onToggleLinkSelection}
             />
           ))}
         </div>
@@ -234,7 +258,30 @@ const SortableSection: React.FC<{
 // ==================================================
 // Dashboard Grid
 // ==================================================
-export const DashboardGrid: React.FC = () => {
+interface DashboardGridProps {
+  autoOpenLinkChangesEnabled?: boolean;
+}
+
+type PendingDelete =
+  | { type: 'group'; id: number; title: string; url?: undefined }
+  | { type: 'link'; id: number; title: string; url?: string }
+  | { type: 'links'; links: Link[] };
+
+const getFilteredGroupLinks = (group: Group, searchQuery: string): Link[] => {
+  const links = group.links || [];
+
+  if (!searchQuery) return links;
+
+  const lowerQuery = searchQuery.toLowerCase();
+  if (group.title.toLowerCase().includes(lowerQuery)) return links;
+
+  return links.filter((link) =>
+    link.title.toLowerCase().includes(lowerQuery) ||
+    (link.url && link.url.toLowerCase().includes(lowerQuery))
+  );
+};
+
+export const DashboardGrid: React.FC<DashboardGridProps> = ({ autoOpenLinkChangesEnabled = true }) => {
   const { t } = useI18n();
   const setGroups = useStore(state => state.setGroups);
   const editMode = useStore(state => state.editMode);
@@ -257,8 +304,15 @@ export const DashboardGrid: React.FC = () => {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [selectedLink, setSelectedLink] = useState<Link | null>(null);
   const [targetGroupId, setTargetGroupId] = useState<number | null>(null);
+  const [linkAnnouncement, setLinkAnnouncement] = useState<LinkAnnouncementDiff | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedLinkIds, setSelectedLinkIds] = useState<number[]>([]);
+  const [isBulkIconModalOpen, setIsBulkIconModalOpen] = useState(false);
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
 
   const allLinks = React.useMemo(() => localGroups.flatMap((group) => group.links || []), [localGroups]);
+  const selectedLinkIdSet = React.useMemo(() => new Set(selectedLinkIds), [selectedLinkIds]);
 
   const { data: groups, isLoading, error } = useQuery({
     queryKey: ['dashboardData'],
@@ -340,6 +394,17 @@ export const DashboardGrid: React.FC = () => {
     }
   }, [groups, setGroups]);
 
+  React.useEffect(() => {
+    const existingLinkIds = new Set(allLinks.map((link) => link.id));
+    setSelectedLinkIds((current) => current.filter((id) => existingLinkIds.has(id)));
+  }, [allLinks]);
+
+  React.useEffect(() => {
+    if (!editMode) {
+      setSelectedLinkIds([]);
+    }
+  }, [editMode]);
+
   // Preload all Iconify icons in a single batch request to prevent
   // frame-by-frame loading as individual <Icon> components fetch one by one.
   React.useEffect(() => {
@@ -360,6 +425,26 @@ export const DashboardGrid: React.FC = () => {
     }
   }, [groups]);
 
+  const [hasEvaluatedLinkAnnouncements, setHasEvaluatedLinkAnnouncements] = useState(false);
+
+  React.useEffect(() => {
+    if (!autoOpenLinkChangesEnabled || isLoading || groups === undefined || hasEvaluatedLinkAnnouncements) {
+      return;
+    }
+
+    const currentSnapshot = createLinkAnnouncementSnapshot(normalizeGroupLinks(groups));
+    const storedSnapshot = readStoredLinkAnnouncementSnapshot();
+    if (!areLinkAnnouncementSnapshotsEqual(storedSnapshot, currentSnapshot)) {
+      const diff = diffLinkAnnouncementSnapshots(storedSnapshot, currentSnapshot);
+      if (diff.added.length > 0 || diff.removed.length > 0) {
+        setLinkAnnouncement(diff);
+      }
+      storeLinkAnnouncementSnapshot(currentSnapshot);
+    }
+
+    setHasEvaluatedLinkAnnouncements(true);
+  }, [autoOpenLinkChangesEnabled, groups, hasEvaluatedLinkAnnouncements, isLoading]);
+
   const handleEditGroup = React.useCallback((group: Group) => {
     setSelectedGroup(group);
     setIsGroupModalOpen(true);
@@ -370,16 +455,14 @@ export const DashboardGrid: React.FC = () => {
     setIsGroupModalOpen(true);
   }, []);
 
-  const handleDeleteGroup = React.useCallback(async (id: number) => {
-    if (!window.confirm(t('dashboard.deleteGroupConfirm'))) return;
-    try {
-      await api.delete(`/groups/${id}`);
-      setLocalGroups((current) => removeGroupFromDashboard(current, id));
-      queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => removeGroupFromDashboard(current, id));
-    } catch (e) {
-      console.error('Failed to delete group', e);
-    }
-  }, [queryClient, t]);
+  const handleDeleteGroup = React.useCallback((id: number) => {
+    const group = localGroups.find((entry) => entry.id === id);
+    setPendingDelete({
+      type: 'group',
+      id,
+      title: group?.title || t('common.group'),
+    });
+  }, [localGroups, t]);
 
   const handleAddLink = React.useCallback((groupId: number) => {
     setSelectedLink(null);
@@ -393,16 +476,177 @@ export const DashboardGrid: React.FC = () => {
     setIsLinkModalOpen(true);
   }, []);
 
-  const handleDeleteLink = React.useCallback(async (id: number) => {
-    if (!window.confirm(t('dashboard.deleteLinkConfirm'))) return;
-    try {
-      await api.delete(`/links/${id}`);
-      setLocalGroups((current) => removeLinkFromDashboard(current, id));
-      queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => removeLinkFromDashboard(current, id));
-    } catch (e) {
-      console.error('Failed to delete link', e);
+  const handleDeleteLink = React.useCallback((link: Link) => {
+    setPendingDelete({
+      type: 'link',
+      id: link.id,
+      title: link?.title || t('dashboard.link'),
+      url: link?.url || '',
+    });
+  }, [t]);
+
+  const toggleLinkSelection = React.useCallback((link: Link) => {
+    setSelectedLinkIds((current) =>
+      current.includes(link.id)
+        ? current.filter((id) => id !== link.id)
+        : [...current, link.id]
+    );
+  }, []);
+
+  const confirmDelete = React.useCallback(async () => {
+    if (!pendingDelete || isDeleting) {
+      return;
     }
-  }, [queryClient, t]);
+
+    setIsDeleting(true);
+    try {
+      if (pendingDelete.type === 'group') {
+        await api.delete(`/groups/${pendingDelete.id}`);
+        setLocalGroups((current) => removeGroupFromDashboard(current, pendingDelete.id));
+        queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => removeGroupFromDashboard(current, pendingDelete.id));
+      } else if (pendingDelete.type === 'link') {
+        await api.delete(`/links/${pendingDelete.id}`);
+        setLocalGroups((current) => removeLinkFromDashboard(current, pendingDelete.id));
+        queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => removeLinkFromDashboard(current, pendingDelete.id));
+      } else {
+        const idsToDelete = pendingDelete.links.map((link) => link.id);
+        await Promise.all(idsToDelete.map((id) => api.delete(`/links/${id}`)));
+        setLocalGroups((current) =>
+          idsToDelete.reduce((groupsState, id) => removeLinkFromDashboard(groupsState, id), current)
+        );
+        queryClient.setQueryData<Group[]>(
+          ['dashboardData'],
+          (current = []) => idsToDelete.reduce((groupsState, id) => removeLinkFromDashboard(groupsState, id), current)
+        );
+        setSelectedLinkIds([]);
+      }
+
+      setPendingDelete(null);
+    } catch (e) {
+      console.error(`Failed to delete ${pendingDelete.type}`, e);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [isDeleting, pendingDelete, queryClient]);
+
+  const categoryGroupId = React.useMemo(() => getGroupIdFromCategory(activeCategory), [activeCategory]);
+
+  const baseGroups = React.useMemo(() => {
+    let nextGroups = localGroups;
+    if (activeCategory === DASHBOARD_FAVORITES_CATEGORY) {
+      return [];
+    }
+    if (categoryGroupId !== null) {
+      nextGroups = nextGroups.filter((group) => group.id === categoryGroupId);
+    } else if (activeCategory && activeCategory !== DASHBOARD_ALL_CATEGORY) {
+      nextGroups = nextGroups.filter((group) => group.title === activeCategory);
+    }
+    return nextGroups;
+  }, [activeCategory, categoryGroupId, localGroups]);
+
+  const displayGroups = React.useMemo(() => {
+    if (!searchQuery.trim()) {
+      return baseGroups.map((group) => ({
+        group,
+        visibleLinks: group.links || [],
+      }));
+    }
+
+    return baseGroups
+      .map((group) => ({
+        group,
+        visibleLinks: getFilteredGroupLinks(group, searchQuery),
+      }))
+      .filter(({ visibleLinks }) => visibleLinks.length > 0);
+  }, [baseGroups, searchQuery]);
+
+  const visibleLinks = React.useMemo(
+    () => displayGroups.flatMap(({ visibleLinks }) => visibleLinks),
+    [displayGroups]
+  );
+
+  const selectedLinks = React.useMemo(
+    () => allLinks.filter((link) => selectedLinkIdSet.has(link.id)),
+    [allLinks, selectedLinkIdSet]
+  );
+
+  const areAllVisibleLinksSelected = visibleLinks.length > 0 && visibleLinks.every((link) => selectedLinkIdSet.has(link.id));
+
+  const selectAllVisibleLinks = React.useCallback(() => {
+    setSelectedLinkIds(Array.from(new Set(visibleLinks.map((link) => link.id))));
+  }, [visibleLinks]);
+
+  const clearLinkSelection = React.useCallback(() => {
+    setSelectedLinkIds([]);
+  }, []);
+
+  const openBulkDelete = React.useCallback(() => {
+    if (selectedLinks.length === 0) {
+      return;
+    }
+
+    setPendingDelete({
+      type: 'links',
+      links: selectedLinks,
+    });
+  }, [selectedLinks]);
+
+  const handleBulkIconSave = React.useCallback(async (icon: string) => {
+    if (selectedLinks.length === 0 || isBulkSaving) {
+      return;
+    }
+
+    setIsBulkSaving(true);
+    try {
+      const response = await api.put<{ success: boolean; links: Link[] }>('/links/bulk/icon', {
+        ids: selectedLinks.map((link) => link.id),
+        icon,
+      });
+      const updatedLinks = Array.isArray(response.data?.links) ? response.data.links : [];
+
+      const mergeUpdatedLinks = (groupsState: Group[]) =>
+        groupsState.map((group) => ({
+          ...group,
+          links: (group.links || []).map((link) => updatedLinks.find((updated) => updated.id === link.id) || link),
+        }));
+
+      setLocalGroups((current) => mergeUpdatedLinks(current));
+      queryClient.setQueryData<Group[]>(['dashboardData'], (current = []) => mergeUpdatedLinks(current));
+      setSelectedLinkIds([]);
+    } catch (error) {
+      console.error('Failed to bulk update link icons', error);
+    } finally {
+      setIsBulkSaving(false);
+    }
+  }, [isBulkSaving, queryClient, selectedLinks]);
+
+  React.useEffect(() => {
+    if (!isAdmin || !editMode) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isTypingTarget = tagName === 'input' || tagName === 'textarea' || target?.isContentEditable;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a' && !isTypingTarget) {
+        event.preventDefault();
+        selectAllVisibleLinks();
+        return;
+      }
+
+      if (event.key === 'Delete' && selectedLinks.length > 0 && !isTypingTarget) {
+        event.preventDefault();
+        openBulkDelete();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editMode, isAdmin, openBulkDelete, selectAllVisibleLinks, selectedLinks.length]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const idStr = String(event.active.id);
@@ -627,12 +871,13 @@ export const DashboardGrid: React.FC = () => {
     );
   }
 
-  const showDragHandles = isAdmin && editMode;
+  const showDragHandles = isAdmin && editMode && !searchQuery.trim();
 
-  const sectionContent = (group: Group) => (
+  const sectionContent = (group: Group, visibleLinks: Link[]) => (
     <GroupSection
       key={group.id}
       group={group}
+      visibleLinks={visibleLinks}
       isAdmin={isAdmin}
       editMode={editMode}
       searchQuery={searchQuery}
@@ -641,6 +886,8 @@ export const DashboardGrid: React.FC = () => {
       onAddLink={handleAddLink}
       onEditLink={handleEditLink}
       onDeleteLink={handleDeleteLink}
+      selectedLinkIds={selectedLinkIdSet}
+      onToggleLinkSelection={toggleLinkSelection}
     />
   );
 
@@ -648,12 +895,52 @@ export const DashboardGrid: React.FC = () => {
   const activeDragLink = activeDragId
     ? localGroups.flatMap(g => g.links || []).find(l => `link-${l.id}` === String(activeDragId))
     : null;
+  const hasSearchResults = displayGroups.length > 0;
 
   return (
     <div className="space-y-4">
 
       {isAdmin && editMode && (
-        <div className="flex justify-end pb-3 border-b border-border/50">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs"
+              onClick={areAllVisibleLinksSelected ? clearLinkSelection : selectAllVisibleLinks}
+              disabled={visibleLinks.length === 0}
+            >
+              {areAllVisibleLinksSelected ? t('bulk.clearSelection') : t('bulk.selectAllVisible')}
+            </Button>
+            {selectedLinks.length > 0 ? (
+              <>
+                <div className="rounded-full border border-primary/18 bg-primary/8 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                  {t('bulk.selectedLinks', { count: selectedLinks.length })}
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="rounded-xl text-xs"
+                  onClick={() => setIsBulkIconModalOpen(true)}
+                >
+                  {t('bulk.editIcons')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="rounded-xl text-xs"
+                  onClick={openBulkDelete}
+                >
+                  {t('bulk.deleteSelected')}
+                </Button>
+              </>
+            ) : (
+              <div className="px-2 text-[11px] text-muted-foreground/65">
+                {t('bulk.selectionHint')}
+              </div>
+            )}
+          </div>
+
           <Button onClick={handleCreateGroup} className="gap-2 font-bold uppercase tracking-widest text-xs" variant="premium">
             <Plus className="h-4 w-4" />
             {t('dashboard.newGroup')}
@@ -662,17 +949,10 @@ export const DashboardGrid: React.FC = () => {
       )}
 
       {(() => {
-        let displayGroups = localGroups;
-        if (activeCategory === 'favorites') {
-          displayGroups = [];
-        } else if (activeCategory && activeCategory !== 'all') {
-          displayGroups = displayGroups.filter(g => g.title === activeCategory);
-        }
-
         const showDraggable = showDragHandles && displayGroups.length > 1;
 
         let emptyState = null;
-        if (displayGroups.length === 0 && activeCategory !== 'favorites') {
+        if (displayGroups.length === 0 && activeCategory !== DASHBOARD_FAVORITES_CATEGORY) {
           if (!groups || groups.length === 0) {
             emptyState = (
               <div className="text-center py-16 border-2 border-dashed border-border rounded-xl">
@@ -680,15 +960,22 @@ export const DashboardGrid: React.FC = () => {
                 <p className="text-sm text-muted-foreground mt-1">{t('dashboard.loginAsAdmin')}</p>
               </div>
             );
+          } else if (searchQuery.trim() && !hasSearchResults) {
+            emptyState = (
+              <div className="text-center py-16 border-2 border-dashed border-border rounded-xl">
+                <h3 className="text-lg font-semibold text-muted-foreground">{t('dashboard.noSearchResults')}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{t('dashboard.clearSearch')}</p>
+              </div>
+            );
           }
         }
 
-        const allLinkIds: string[] = displayGroups.flatMap(g => (g.links || []).map(l => `link-${l.id}`));
-        const allGroupIds: string[] = displayGroups.map(g => `group-${g.id}`);
+        const allLinkIds: string[] = displayGroups.flatMap(({ visibleLinks }) => visibleLinks.map(l => `link-${l.id}`));
+        const allGroupIds: string[] = displayGroups.map(({ group }) => `group-${group.id}`);
 
-        const renderGroups = (groupsToRender: Group[]) => {
+        const renderGroups = (groupsToRender: Array<{ group: Group; visibleLinks: Link[] }>) => {
           const result: React.ReactNode[] = [];
-          groupsToRender.forEach((group) => {
+          groupsToRender.forEach(({ group, visibleLinks }) => {
             // Drop indicator BEFORE this group
             if (showDraggable && activeDragGroup && dragOverGroupId === group.id && dragDirection === 'before') {
               result.push(<GroupDropIndicator key={`di-before-${group.id}`} />);
@@ -696,10 +983,10 @@ export const DashboardGrid: React.FC = () => {
             result.push(
               showDraggable ? (
                 <SortableSection key={group.id} group={group}>
-                  {sectionContent(group)}
+                  {sectionContent(group, visibleLinks)}
                 </SortableSection>
               ) : (
-                <div key={group.id}>{sectionContent(group)}</div>
+                <div key={group.id}>{sectionContent(group, visibleLinks)}</div>
               )
             );
             // Drop indicator AFTER this group
@@ -719,6 +1006,8 @@ export const DashboardGrid: React.FC = () => {
               editMode={editMode}
               onEditLink={handleEditLink}
               onDeleteLink={handleDeleteLink}
+              selectedLinkIds={selectedLinkIdSet}
+              onToggleLinkSelection={toggleLinkSelection}
             />
             {emptyState}
             <div className="space-y-8 md:space-y-9">
@@ -784,8 +1073,52 @@ export const DashboardGrid: React.FC = () => {
           />
         ) : null}
       </Suspense>
+
+      {linkAnnouncement ? (
+        <LinkChangesDialog
+          isOpen={Boolean(linkAnnouncement)}
+          onClose={() => setLinkAnnouncement(null)}
+          added={linkAnnouncement.added}
+          removed={linkAnnouncement.removed}
+          isFirstRun={linkAnnouncement.isFirstRun}
+        />
+      ) : null}
+
+      {pendingDelete ? (
+        <DeleteConfirmDialog
+          isOpen={Boolean(pendingDelete)}
+          onClose={() => !isDeleting && setPendingDelete(null)}
+          onConfirm={confirmDelete}
+          isDeleting={isDeleting}
+          title={
+            pendingDelete.type === 'group'
+              ? t('deleteDialog.deleteGroupTitle')
+              : pendingDelete.type === 'links'
+                ? t('deleteDialog.deleteLinksTitle', { count: pendingDelete.links.length })
+                : t('deleteDialog.deleteLinkTitle')
+          }
+          description={
+            pendingDelete.type === 'group'
+              ? t('dashboard.deleteGroupConfirm')
+              : pendingDelete.type === 'links'
+                ? t('bulk.deleteSelectedDescription', { count: pendingDelete.links.length })
+                : t('dashboard.deleteLinkConfirm')
+          }
+          itemName={pendingDelete.type !== 'links' ? pendingDelete.title : undefined}
+          itemUrl={pendingDelete.type === 'link' ? pendingDelete.url : undefined}
+          items={pendingDelete.type === 'links' ? pendingDelete.links.map((link) => ({ name: link.title, url: link.url })) : undefined}
+        />
+      ) : null}
+
+      {isBulkIconModalOpen ? (
+        <BulkLinkIconModal
+          isOpen={isBulkIconModalOpen}
+          onClose={() => !isBulkSaving && setIsBulkIconModalOpen(false)}
+          onSave={handleBulkIconSave}
+          selectedCount={selectedLinks.length}
+          initialIcon={selectedLinks[0]?.icon || ''}
+        />
+      ) : null}
     </div>
   );
 };
-
-

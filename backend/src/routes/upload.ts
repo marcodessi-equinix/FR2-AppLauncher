@@ -6,11 +6,12 @@ import fsPromises from 'fs/promises';
 import { requireAdmin } from '../middleware/auth';
 import { allowedImageExtensions } from '../lib/iconPolicy';
 import { requireTrustedOrigin } from '../middleware/trustedOrigin';
+import { runtimeConfig } from '../config/runtime';
 
 const router = express.Router();
 
 // Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../../uploads/icons');
+const uploadDir = runtimeConfig.uploadIconsDir;
 const iconMetadataPath = path.join(uploadDir, '.metadata.json');
 interface UploadedIconMetadata {
   originalName: string;

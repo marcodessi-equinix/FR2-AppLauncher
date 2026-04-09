@@ -7,6 +7,9 @@ import { Button } from '../ui/button';
 import { LiveClock } from './Clocks';
 import { downloadBookmarksFile } from '../../lib/bookmarkExport';
 import { useI18n } from '../../lib/i18n';
+import { getLatestInfoCardVersion, type InfoCard } from '../../types/infoCard';
+
+const INFO_SEEN_VERSION_STORAGE_KEY = 'applauncher_info_cards_seen_version';
 
 const LoginModal = React.lazy(async () => {
   const module = await import('../admin/LoginModal');
@@ -28,7 +31,11 @@ const InfoModal = React.lazy(async () => {
   return { default: module.InfoModal };
 });
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  autoOpenInfoEnabled?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ autoOpenInfoEnabled = true }) => {
   const { language, toggleLanguage, t } = useI18n();
   const searchQuery = useStore((state) => state.searchQuery);
   const setSearchQuery = useStore((state) => state.setSearchQuery);
@@ -43,6 +50,7 @@ export const Header: React.FC = () => {
   const [isWeatherOpen, setIsWeatherOpen] = React.useState(false);
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
+  const [hasCheckedAutoInfo, setHasCheckedAutoInfo] = React.useState(false);
   
   // Import State
   const [importData, setImportData] = React.useState<ImportPreviewData | null>(null);
@@ -104,6 +112,47 @@ export const Header: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  React.useEffect(() => {
+    if (!autoOpenInfoEnabled || hasCheckedAutoInfo) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const checkInfoAnnouncements = async () => {
+      try {
+        const res = await api.get('/system/info-cards');
+        const cards = Array.isArray(res.data?.cards) ? (res.data.cards as InfoCard[]) : [];
+        const latestVersion = getLatestInfoCardVersion(cards);
+
+        if (!latestVersion) {
+          return;
+        }
+
+        const seenVersion = localStorage.getItem(INFO_SEEN_VERSION_STORAGE_KEY);
+        if (seenVersion !== latestVersion) {
+          localStorage.setItem(INFO_SEEN_VERSION_STORAGE_KEY, latestVersion);
+
+          if (!cancelled) {
+            setIsInfoOpen(true);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check info cards for auto-open', error);
+      } finally {
+        if (!cancelled) {
+          setHasCheckedAutoInfo(true);
+        }
+      }
+    };
+
+    void checkInfoAnnouncements();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [autoOpenInfoEnabled, hasCheckedAutoInfo]);
+
   return (
     <>
       <header className="app-header sticky top-0 z-50 w-full border-b border-[hsl(var(--glass-border)/0.08)] bg-[linear-gradient(180deg,hsl(var(--glass-bg)/0.78),hsl(var(--glass-bg)/0.58))] backdrop-blur-lg">
@@ -116,7 +165,7 @@ export const Header: React.FC = () => {
               <div className="brand-lockup flex items-center gap-4">
                 <img 
                   src="/FR2%20App%20Launcher%20logo.png" 
-                  alt="FR2 App Launcher" 
+                  alt="AppLauncher" 
                   className="h-10 w-auto object-contain drop-shadow-[0_16px_32px_hsl(var(--glow)/0.28)] md:h-11 lg:h-12"
                 />
                 <div className="flex flex-col">

@@ -97,6 +97,15 @@ const parseJsonResponse = async <T>(response: Response, label: string): Promise<
 
 export const safeArray = <T>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 
+export const getErrorMessage = (error: unknown, fallback = 'Request failed.'): string => {
+  if (error instanceof Error) {
+    const message = error.message.trim();
+    return message || fallback;
+  }
+
+  return fallback;
+};
+
 export const parseBookmarks = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);

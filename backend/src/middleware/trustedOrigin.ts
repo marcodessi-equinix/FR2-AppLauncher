@@ -1,10 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
 import { isAllowedRequestOrigin } from '../lib/originPolicy';
-
-const NODE_ENV = process.env.NODE_ENV || 'development';
+import { runtimeConfig } from '../config/runtime';
 
 export const requireTrustedOrigin = (req: Request, res: Response, next: NextFunction) => {
-  if (isAllowedRequestOrigin(req, NODE_ENV)) {
+  if (isAllowedRequestOrigin(req, runtimeConfig.nodeEnv)) {
     next();
     return;
   }

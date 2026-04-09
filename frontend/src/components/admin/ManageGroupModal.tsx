@@ -6,7 +6,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '../ui/card';
 import { IconPicker } from '../ui/IconPicker';
 import { X, Loader2, Save } from 'lucide-react';
 import { DynamicIcon } from '../ui/DynamicIcon';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 import { Group } from '../../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { upsertGroupInDashboard } from '../../lib/dashboardData';
@@ -60,6 +60,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
       onClose();
     } catch (error) {
       console.error('Failed to save group', error);
+      alert(getErrorMessage(error, t('common.requestFailed')));
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +72,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
         className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
-      <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300 relative z-10 rounded-3xl overflow-hidden bg-card/95 border-white/10">
+      <Card className="light-modal-card w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300 relative z-10 rounded-3xl overflow-hidden bg-card/95 border-white/10">
         <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] pb-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">
             {group ? t('groups.editGroup') : t('groups.newGroup')}
@@ -90,7 +91,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 pt-5">
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.icon')}</label>
+              <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.icon')}</label>
               <div className="flex gap-3 items-center">
                 {icon && (
                   <div className="h-10 w-10 rounded-xl glass-surface flex items-center justify-center">
@@ -101,7 +102,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
                   type="button"
                   variant="secondary"
                   onClick={() => setShowIconPicker(true)}
-                  className="flex-1 rounded-xl"
+                  className="light-modal-secondary flex-1 rounded-xl"
                 >
                   {icon ? t('groups.changeIcon') : t('groups.selectIcon')}
                 </Button>
@@ -109,7 +110,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.title')}</label>
+              <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.title')}</label>
               <Input
                 type="text"
                 required
@@ -149,7 +150,7 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
             className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={() => setShowIconPicker(false)}
           />
-          <Card className="w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
+          <Card className="light-modal-card w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
             <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] py-4 px-6">
               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">{t('groups.selectIcon')}</h3>
               <button 

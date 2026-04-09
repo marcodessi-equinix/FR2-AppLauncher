@@ -48,7 +48,7 @@ const DynamicIconComponent: React.FC<DynamicIconProps> = ({
   return (
     <Icon 
       icon={iconName} 
-      className={cn("text-accent", className)} 
+      className={cn("text-primary", className)} 
     />
   );
 };

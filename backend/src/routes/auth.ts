@@ -5,12 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { adminSessionService } from '../services/sessionService';
 import { requireTrustedOrigin } from '../middleware/trustedOrigin';
+import { runtimeConfig } from '../config/runtime';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
-const COOKIE_SECURE_MODE = (process.env.COOKIE_SECURE || 'auto').trim().toLowerCase();
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 10;
@@ -30,7 +28,7 @@ function isHttpsRequest(req: express.Request): boolean {
 }
 
 function getAuthCookieBaseOptions(req: express.Request): express.CookieOptions {
-  const secure = COOKIE_SECURE_MODE === 'false'
+  const secure = runtimeConfig.cookieSecureMode === 'false'
     ? false
     : isHttpsRequest(req);
 
@@ -82,19 +80,19 @@ function clearRateLimit(req: express.Request) {
 }
 
 async function verifyAdminPassword(password: string): Promise<boolean> {
-  if (!ADMIN_PASSWORD) {
+  if (!runtimeConfig.adminPassword) {
     return false;
   }
 
-  if (ADMIN_PASSWORD.startsWith('$2')) {
-    return bcrypt.compare(password, ADMIN_PASSWORD);
+  if (runtimeConfig.adminPassword.startsWith('$2')) {
+    return bcrypt.compare(password, runtimeConfig.adminPassword);
   }
 
-  return password === ADMIN_PASSWORD;
+  return password === runtimeConfig.adminPassword;
 }
 
 function getTokenPayload(token: string) {
-  const verifiedToken = jwt.verify(token, JWT_SECRET);
+  const verifiedToken = jwt.verify(token, runtimeConfig.jwtSecret);
   return TokenPayloadSchema.parse(verifiedToken);
 }
 
@@ -119,7 +117,7 @@ router.post('/login', async (req, res) => {
     return res.status(403).json({ error: 'Another staff member is currently logged in. Please wait until they are finished before making changes.' });
   }
 
-  const token = jwt.sign({ isAdmin: true, sessionId }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ isAdmin: true, sessionId }, runtimeConfig.jwtSecret, { expiresIn: '7d' });
   clearRateLimit(req);
 
   res.cookie('auth_token', token, getAuthCookieOptions(req));

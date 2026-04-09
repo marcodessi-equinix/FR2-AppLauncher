@@ -1,7 +1,7 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { Info, Plus, Edit, Trash2, X, Megaphone } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 import DOMPurify from 'dompurify';
 import { Button } from '../ui/button';
 import { useI18n } from '../../lib/i18n';
@@ -35,6 +35,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
   const [cards, setCards] = useState<InfoCard[]>([]);
   const [editingCard, setEditingCard] = useState<InfoCard | null>(null);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -59,7 +60,11 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
   const cardTitle = (card: InfoCard) => getCardTitle(card, language);
   const cardContent = (card: InfoCard) => getCardContent(card, language);
 
-  const saveCards = async (newCards: InfoCard[]) => {
+  const scrollCardsToTop = () => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const saveCards = async (newCards: InfoCard[], options?: { scrollToTop?: boolean }) => {
     try {
       const res = await api.post('/system/info-cards', { cards: newCards });
       if (res.data.cards) {
@@ -67,8 +72,13 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
       } else {
         setCards(newCards);
       }
-    } catch {
+
+      if (options?.scrollToTop) {
+        requestAnimationFrame(scrollCardsToTop);
+      }
+    } catch (error) {
       console.error('Failed to save info cards');
+      alert(getErrorMessage(error, t('info.saveError')));
     }
   };
 
@@ -88,15 +98,9 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleSaveCard = (card: InfoCard) => {
-    let newCards: InfoCard[];
-    const idx = cards.findIndex((c) => c.id === card.id);
-    if (idx >= 0) {
-      newCards = [...cards];
-      newCards[idx] = card;
-    } else {
-      newCards = [card, ...cards];
-    }
-    saveCards(newCards);
+    const remainingCards = cards.filter((c) => c.id !== card.id);
+    const newCards = [card, ...remainingCards];
+    saveCards(newCards, { scrollToTop: true });
   };
 
   const formatDate = (iso: string) => {
@@ -114,7 +118,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="glass-card max-w-4xl overflow-hidden rounded-3xl border border-[hsl(var(--glass-border)/0.1)] bg-background/92 p-0 text-foreground shadow-2xl backdrop-blur-xl [&>button]:hidden">
+        <DialogContent className="glass-card w-[min(98vw,110rem)] max-w-7xl overflow-hidden rounded-3xl border border-[hsl(var(--glass-border)/0.1)] bg-background/92 p-0 text-foreground shadow-2xl backdrop-blur-xl [&>button]:hidden">
           <div className="overflow-hidden rounded-3xl">
             {/* Header — identical style to VersionChangelogDialog */}
             <div className="border-b border-[hsl(var(--glass-border)/0.05)] px-8 py-6">
@@ -166,7 +170,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             {/* Cards list */}
-            <div className="max-h-[68vh] overflow-y-auto px-8 py-6 custom-scrollbar">
+            <div ref={scrollContainerRef} className="max-h-[82vh] overflow-y-auto px-8 py-6 custom-scrollbar">
               {cards.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/60">
                   <Megaphone className="h-12 w-12 mb-4 opacity-30" />

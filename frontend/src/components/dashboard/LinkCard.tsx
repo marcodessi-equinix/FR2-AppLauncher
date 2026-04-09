@@ -18,16 +18,20 @@ export interface LinkCardProps {
   link: Link;
   isAdmin: boolean;
   editMode: boolean;
+  isSelected?: boolean;
   onEdit?: (link: Link) => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (link: Link) => void;
+  onToggleSelect?: (link: Link) => void;
 }
 
 const LinkCardComponent: React.FC<LinkCardProps> = ({ 
   link, 
   isAdmin, 
   editMode,
+  isSelected = false,
   onEdit, 
-  onDelete
+  onDelete,
+  onToggleSelect,
 }) => {
   const { t } = useI18n();
   const isFavorite = useStore((state) => state.favorites.includes(link.id));
@@ -45,6 +49,11 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
 
     if (editMode) {
       if (isAdmin) {
+        if (e.ctrlKey || e.metaKey) {
+          e.stopPropagation();
+          onToggleSelect?.(link);
+          return;
+        }
         onEdit?.(link);
       }
       return;
@@ -86,16 +95,22 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
         "hover:border-primary/25 hover:bg-[hsl(var(--glass-highlight)/0.05)]",
         "focus-within:ring-2 focus-within:ring-primary/30 focus-within:outline-none",
         "border-[hsl(var(--glass-border)/0.06)]",
-        isFavorite && "border-amber-400/25 bg-amber-400/[0.035] shadow-[0_0_18px_-8px_rgba(251,191,36,0.18)]"
+        isFavorite && "border-amber-400/25 bg-amber-400/[0.035] shadow-[0_0_18px_-8px_rgba(251,191,36,0.18)]",
+        editMode && isAdmin && isSelected && "border-primary/45 bg-primary/[0.08] ring-2 ring-primary/35 shadow-[0_0_0_1px_rgba(59,130,246,0.18)]"
       )}
     >
       <div className="absolute top-2 right-2 z-30 flex items-center gap-1">
+        {editMode && isAdmin && isSelected && (
+          <div className="rounded-md border border-primary/25 bg-primary/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+            Multi
+          </div>
+        )}
         {editMode && isAdmin && (
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7 rounded-md text-muted-foreground hover:bg-black/40 hover:text-destructive"
-            onClick={(e) => { e.stopPropagation(); onDelete?.(link.id); }}
+            onClick={(e) => { e.stopPropagation(); onDelete?.(link); }}
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -103,8 +118,9 @@ const LinkCardComponent: React.FC<LinkCardProps> = ({
 
         <button
           onClick={handleToggleFavorite}
+          data-favorite={isFavorite ? 'true' : 'false'}
           className={cn(
-            "p-1 rounded-full transition-all duration-200",
+            "favorite-toggle p-1 rounded-full transition-all duration-200",
             isFavorite 
               ? "text-amber-400 opacity-100 hover:scale-110 drop-shadow-[0_0_4px_rgba(251,191,36,0.5)]" 
               : "text-muted-foreground/10 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-400/10"
@@ -172,6 +188,7 @@ const arePropsEqual = (prev: LinkCardProps, next: LinkCardProps) => {
   if (prev.link.url !== next.link.url) return false;
   if (prev.link.icon !== next.link.icon) return false;
   if (prev.link.description !== next.link.description) return false;
+  if (prev.isSelected !== next.isSelected) return false;
 
   // Ignore handler reference changes (assuming they are stable or don't affect render output if other props are same)
   // But strictly speaking, if a handler changes, it might be a new closure. 

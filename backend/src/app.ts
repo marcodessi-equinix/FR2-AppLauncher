@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import path from 'path';
 import { runMigrations } from './db/index';
 import authRoutes from './routes/auth';
 import groupRoutes from './routes/groups';
@@ -17,14 +16,9 @@ import adminRoutes from './routes/admin';
 import favoriteRoutes from './routes/favorites';
 import clientRoutes from './routes/clients';
 import { getAllowedOrigins, getConfiguredOrigins, normalizeOrigin } from './lib/originPolicy';
+import { runtimeConfig, uploadsRootDir } from './config/runtime';
+import { getBuildInfo } from './config/buildInfo';
 
-const PORT = Number(process.env.PORT) || 3000;
-
-const JWT_SECRET = process.env.JWT_SECRET || '';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
-const ALLOW_INSECURE_DEFAULTS = process.env.ALLOW_INSECURE_DEFAULTS === 'true';
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const COOKIE_SECURE_MODE = (process.env.COOKIE_SECURE || 'auto').trim().toLowerCase();
 function isWeakSecret(secret: string): boolean {
   const blocked = new Set([
     '',
@@ -40,20 +34,23 @@ function isWeakAdminPassword(password: string): boolean {
 }
 
 function assertSecureConfig(): void {
-  if (!ALLOW_INSECURE_DEFAULTS && (isWeakSecret(JWT_SECRET) || isWeakAdminPassword(ADMIN_PASSWORD))) {
+  if (
+    !runtimeConfig.allowInsecureDefaults
+    && (isWeakSecret(runtimeConfig.jwtSecret) || isWeakAdminPassword(runtimeConfig.adminPassword))
+  ) {
     console.error('Refusing to start with insecure credentials. Set strong JWT_SECRET and ADMIN_PASSWORD.');
     process.exit(1);
   }
 }
 
 function warnOnSuspiciousConfig(): void {
-  if (!['', 'auto', 'true', 'false'].includes(COOKIE_SECURE_MODE)) {
+  if (!['', 'auto', 'true', 'false'].includes(runtimeConfig.rawCookieSecureMode)) {
     console.warn(`Unsupported COOKIE_SECURE value '${process.env.COOKIE_SECURE}'. Expected auto, true, or false. Falling back to automatic proxy detection.`);
   }
 
   for (const origin of getConfiguredOrigins()) {
     const normalizedOrigin = normalizeOrigin(origin).toLowerCase();
-    if (COOKIE_SECURE_MODE === 'true' && normalizedOrigin.startsWith('http://')) {
+    if (runtimeConfig.cookieSecureMode === 'true' && normalizedOrigin.startsWith('http://')) {
       console.warn(`COOKIE_SECURE=true conflicts with non-HTTPS FRONTEND_URL '${origin}'. Cookies will follow the actual proxy/request protocol instead.`);
     }
   }
@@ -75,7 +72,7 @@ export function createApp(): express.Express {
       return;
     }
 
-    const allowedOrigins = getAllowedOrigins(req, NODE_ENV);
+    const allowedOrigins = getAllowedOrigins(req, runtimeConfig.nodeEnv);
 
     if (allowedOrigins.has(requestOrigin)) {
       callback(null, { origin: requestOrigin, credentials: true });
@@ -88,7 +85,7 @@ export function createApp(): express.Express {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
   app.use(cookieParser());
-  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+  app.use('/uploads', express.static(uploadsRootDir));
 
   app.use('/api/auth', authRoutes);
   app.use('/api/groups', groupRoutes);
@@ -103,7 +100,11 @@ export function createApp(): express.Express {
   app.use('/api/clients', clientRoutes);
 
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: getBuildInfo().releaseVersion,
+    });
   });
 
   return app;
@@ -116,8 +117,8 @@ export const startServer = async () => {
     await runMigrations();
 
     const app = createApp();
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`AppLauncher backend listening on 0.0.0.0:${PORT}`);
+    app.listen(runtimeConfig.port, '0.0.0.0', () => {
+      console.log(`AppLauncher backend listening on 0.0.0.0:${runtimeConfig.port}`);
     });
   } catch (error) {
     console.error("Critical failure during startup (Migrations):", error);

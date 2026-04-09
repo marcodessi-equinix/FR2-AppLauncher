@@ -19,3 +19,25 @@ export function getCardTitle(card: InfoCard, lang: 'de' | 'en'): string {
 export function getCardContent(card: InfoCard, lang: 'de' | 'en'): string {
   return (lang === 'de' ? card.content_de : card.content_en) || card.content || card.content_de || card.content_en || '';
 }
+
+/**
+ * Returns the newest card creation timestamp.
+ * We use this as a lightweight "announcement version" so each browser
+ * can decide whether newly added info cards should be shown once again.
+ */
+export function getLatestInfoCardVersion(cards: InfoCard[]): string | null {
+  if (!Array.isArray(cards) || cards.length === 0) {
+    return null;
+  }
+
+  let latestTimestamp = 0;
+
+  for (const card of cards) {
+    const parsed = Date.parse(card.createdAt || '');
+    if (!Number.isNaN(parsed) && parsed > latestTimestamp) {
+      latestTimestamp = parsed;
+    }
+  }
+
+  return latestTimestamp > 0 ? new Date(latestTimestamp).toISOString() : null;
+}

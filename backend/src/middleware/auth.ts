@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { adminSessionService } from '../services/sessionService';
-
-const JWT_SECRET = process.env.JWT_SECRET || '';
+import { runtimeConfig } from '../config/runtime';
 
 export interface UserPayload {
   isAdmin: boolean;
@@ -25,7 +24,7 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction) =>
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as UserPayload;
+    const payload = jwt.verify(token, runtimeConfig.jwtSecret) as UserPayload;
     if (!payload.isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
     }

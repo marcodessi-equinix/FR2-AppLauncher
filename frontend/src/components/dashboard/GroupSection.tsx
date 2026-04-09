@@ -17,6 +17,7 @@ import { useI18n } from '../../lib/i18n';
 
 interface GroupSectionProps {
   group: Group;
+  visibleLinks?: Link[];
   isAdmin: boolean;
   editMode: boolean;
   searchQuery: string;
@@ -24,17 +25,21 @@ interface GroupSectionProps {
   onDeleteGroup: (id: number) => void;
   onAddLink: (groupId: number) => void;
   onEditLink: (link: Link) => void;
-  onDeleteLink: (id: number) => void;
+  onDeleteLink: (link: Link) => void;
+  selectedLinkIds?: Set<number>;
+  onToggleLinkSelection?: (link: Link) => void;
   dragListeners?: DraggableSyntheticListeners;
 }
 
 // Sortable Link Card Wrapper
-const SortableLinkCard = React.memo(({ link, isAdmin, editMode, onEdit, onDelete }: { 
+const SortableLinkCard = React.memo(({ link, isAdmin, editMode, onEdit, onDelete, isSelected, onToggleSelect }: { 
   link: Link; 
   isAdmin: boolean;
   editMode: boolean;
   onEdit: (link: Link) => void;
-  onDelete: (id: number) => void;
+  onDelete: (link: Link) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (link: Link) => void;
 }) => {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const {
@@ -70,8 +75,10 @@ const SortableLinkCard = React.memo(({ link, isAdmin, editMode, onEdit, onDelete
         link={link}
         isAdmin={isAdmin}
         editMode={editMode}
+        isSelected={isSelected}
         onEdit={onEdit}
         onDelete={onDelete}
+        onToggleSelect={onToggleSelect}
       />
     </div>
   );
@@ -79,6 +86,7 @@ const SortableLinkCard = React.memo(({ link, isAdmin, editMode, onEdit, onDelete
 
 export const GroupSection: React.FC<GroupSectionProps> = ({
   group,
+  visibleLinks,
   isAdmin,
   editMode,
   searchQuery,
@@ -87,6 +95,8 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
   onAddLink,
   onEditLink,
   onDeleteLink,
+  selectedLinkIds,
+  onToggleLinkSelection,
   dragListeners
 }) => {
   const { t } = useI18n();
@@ -95,10 +105,11 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
     data: { groupId: group.id }
   });
 
-  // Handled globally in DashboardGrid
-
-  // Filter links
   const filteredLinks = useMemo(() => {
+    if (visibleLinks) {
+      return visibleLinks;
+    }
+
     const links = group.links || [];
 
     if (!searchQuery) return links;
@@ -112,9 +123,7 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
       l.title.toLowerCase().includes(lowerQuery) || 
       (l.url && l.url.toLowerCase().includes(lowerQuery))
     );
-  }, [group.links, searchQuery, group.title]);
-
-  // Handled globally in DashboardGrid
+  }, [group.links, group.title, searchQuery, visibleLinks]);
 
   if (filteredLinks.length === 0 && (!isAdmin || searchQuery)) {
     return null;
@@ -186,12 +195,14 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
                      {filteredLinks.map(link => (
                        <SortableLinkCard 
                          key={link.id}
-                         link={link} 
-                         isAdmin={isAdmin}
-                         editMode={editMode}
-                         onEdit={onEditLink}
-                         onDelete={onDeleteLink}
-                       />
+                       link={link} 
+                        isAdmin={isAdmin}
+                        editMode={editMode}
+                        onEdit={onEditLink}
+                        onDelete={onDeleteLink}
+                        isSelected={selectedLinkIds?.has(link.id)}
+                        onToggleSelect={onToggleLinkSelection}
+                      />
                      ))}
                    </div>
                  </SortableContext>
@@ -203,8 +214,10 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
                        link={link}
                        isAdmin={isAdmin}
                        editMode={editMode}
+                       isSelected={selectedLinkIds?.has(link.id)}
                        onEdit={onEditLink}
                        onDelete={onDeleteLink}
+                       onToggleSelect={onToggleLinkSelection}
                      />
                    ))}
                 </div>
@@ -215,4 +228,3 @@ export const GroupSection: React.FC<GroupSectionProps> = ({
     </section>
   );
 };
-

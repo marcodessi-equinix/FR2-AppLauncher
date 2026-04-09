@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 COPY backend/package*.json ./
+COPY scripts/check-node-version.js /scripts/check-node-version.js
 RUN npm install
 
 COPY backend/ .

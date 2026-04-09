@@ -4,9 +4,10 @@ import { Dock } from './Dock';
 
 interface LayoutProps {
   children: React.ReactNode;
+  autoOpenInfoEnabled?: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, autoOpenInfoEnabled = true }) => {
 
 
   return (
@@ -16,7 +17,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* ... */}
       </div>
 
-      <Header />
+      <Header autoOpenInfoEnabled={autoOpenInfoEnabled} />
       
       <main className="app-main relative z-10 w-full px-[clamp(24px,3vw,64px)] py-6 md:py-8 flex-1 overflow-y-auto pb-16 md:pb-[4.5rem]">
         {children}

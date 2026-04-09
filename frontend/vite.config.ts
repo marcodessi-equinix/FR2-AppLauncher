@@ -4,28 +4,21 @@ import { execFileSync } from "child_process"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-const resolvePackageVersion = (): string => {
-  const candidatePaths = [
-    path.resolve(__dirname, '../package.json'),
-    path.resolve(__dirname, './package.json'),
-  ]
+const repoRoot = path.resolve(__dirname, '..')
+const rootPackageJsonPath = path.join(repoRoot, 'package.json')
+const frontendPackageJsonPath = path.join(__dirname, 'package.json')
 
-  for (const packageJsonPath of candidatePaths) {
-    if (!fs.existsSync(packageJsonPath)) {
-      continue
-    }
-
-    try {
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as { version?: string }
-      if (packageJson.version) {
-        return packageJson.version
-      }
-    } catch {
-      continue
-    }
+const readPackageVersion = (packageJsonPath: string): string | null => {
+  if (!fs.existsSync(packageJsonPath)) {
+    return null
   }
 
-  return '0.1.0'
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as { version?: string }
+    return packageJson.version?.trim() || null
+  } catch {
+    return null
+  }
 }
 
 const normalizeReleaseVersion = (value: string): string => {
@@ -49,11 +42,14 @@ const resolveReleaseVersion = (): string => {
     return normalizeReleaseVersion(envVersion)
   }
 
-  return normalizeReleaseVersion(resolvePackageVersion())
+  return normalizeReleaseVersion(
+    readPackageVersion(rootPackageJsonPath)
+    || readPackageVersion(frontendPackageJsonPath)
+    || '0.1.0'
+  )
 }
 
 const hasGitMetadata = (): boolean => {
-  const repoRoot = path.resolve(__dirname, '..')
   return fs.existsSync(path.join(repoRoot, '.git'))
 }
 
@@ -64,7 +60,6 @@ const resolveGitSha = (): string => {
   }
 
   try {
-    const repoRoot = path.resolve(__dirname, '..')
     if (!hasGitMetadata()) {
       return 'local'
     }
@@ -87,7 +82,6 @@ const resolveBuildNumber = (): string => {
   }
 
   try {
-    const repoRoot = path.resolve(__dirname, '..')
     if (!hasGitMetadata()) {
       return ''
     }

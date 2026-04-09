@@ -5,60 +5,230 @@ interface LocalizedText {
   en: string;
 }
 
+export interface ChangelogSection {
+  title: string;
+  items: string[];
+}
+
 export interface ChangelogEntry {
   version: string;
   date: string;
   title: string;
-  items: string[];
+  summary: string;
+  highlights: string[];
+  importantChanges: string[];
+  sections: ChangelogSection[];
+}
+
+interface LocalizedChangelogSection {
+  title: LocalizedText;
+  items: LocalizedText[];
 }
 
 interface LocalizedChangelogEntry {
   version: string;
   date: string;
   title: LocalizedText;
-  items: LocalizedText[];
+  summary: LocalizedText;
+  highlights: LocalizedText[];
+  importantChanges?: LocalizedText[];
+  sections: LocalizedChangelogSection[];
 }
 
 const APP_CHANGELOG: LocalizedChangelogEntry[] = [
   {
-    version: 'v2.0.0',
-    date: '2026-04-07',
+    version: 'v2.1.0',
+    date: '2026-04-09',
     title: {
-      de: 'Open-Source-Release und voll portable',
-      en: 'Open-source release and fully portable',
+      de: 'Deployment-Profile, Admin-Workflow und Release-Kommunikation geschärft',
+      en: 'Deployment profiles, admin workflow, and release communication refined',
     },
-    items: [
+    summary: {
+      de: 'Aktueller Produktstand mit klar getrennten Deployment-Modi, robusterer Versionsdiagnostik und einem deutlich erweiterten Admin-Workflow.',
+      en: 'Current product state with clearly separated deployment modes, stronger version diagnostics, and a substantially expanded admin workflow.',
+    },
+    highlights: [
       {
-        de: 'Alle hart codierten URLs, Hostnamen und herstellerspezifischen Konfigurationen entfernt.',
-        en: 'Removed all hardcoded URLs, hostnames, and vendor-specific configurations.',
+        de: 'Direktzugriff und Proxy-Only Compose',
+        en: 'Direct access and proxy-only compose',
       },
       {
-        de: 'Die App lässt sich jetzt auf jedem Rechner mit Docker oder Podman installieren, ohne DNS- oder VM-Voraussetzungen.',
-        en: 'The app can now be installed on any machine with Docker or Podman, without DNS or VM prerequisites.',
+        de: 'Multi-Link-Administration',
+        en: 'Multi-link administration',
       },
       {
-        de: 'Das vereinheitlichte Installationsskript unterstützt sowohl Docker Compose als auch Podman Compose.',
-        en: 'The unified install script supports both Docker Compose and Podman Compose.',
+        de: 'Bereinigte Release-Historie',
+        en: 'Cleaned-up release history',
+      },
+    ],
+    importantChanges: [
+      {
+        de: 'Standard-Deployments laufen jetzt über docker-compose.yml mit veröffentlichtem APP_PORT. Für reine Reverse-Proxy-Setups gibt es docker-compose.proxy.yml und .env.proxy.example.',
+        en: 'Standard deployments now run through docker-compose.yml with a published APP_PORT. Pure reverse-proxy setups use docker-compose.proxy.yml and .env.proxy.example.',
       },
       {
-        de: 'Alte Proxy-Netzwerk-Abhängigkeiten und nginx-proxy-manager-Referenzen entfernt.',
-        en: 'Removed legacy proxy-network dependencies and nginx-proxy-manager references.',
+        de: 'Die Versionshistorie wurde bewusst auf echte Produktmeilensteine konsolidiert. Frühere Zwischenstände vom selben Ausbauzyklus sind zusammengeführt.',
+        en: 'The release history was deliberately consolidated into actual product milestones. Earlier intermediate states from the same delivery cycle are grouped together.',
+      },
+    ],
+    sections: [
+      {
+        title: {
+          de: 'Deployment und Portabilität',
+          en: 'Deployment and portability',
+        },
+        items: [
+          {
+            de: 'Direktes Host-Port-Deployment und Proxy-Only-Deployment sind jetzt sauber getrennt, inklusive eigener Compose- und Env-Vorlagen.',
+            en: 'Direct host-port deployment and proxy-only deployment are now cleanly separated, including dedicated compose and env templates.',
+          },
+          {
+            de: 'Backup und Restore arbeiten auf named volumes statt Projektordnern und passen damit sauber zum Container-Betrieb.',
+            en: 'Backup and restore now operate on named volumes instead of project folders, aligning cleanly with container-based operation.',
+          },
+          {
+            de: 'README, Installationspfad und Compose-Dateien wurden auf den tatsächlichen Betriebsmodus des Projekts abgestimmt.',
+            en: 'README, installation flow, and compose files were aligned with the project’s actual operating model.',
+          },
+        ],
       },
       {
-        de: 'Veraltete API-Endpunkte und alter Frontend-Code entfernt.',
-        en: 'Deprecated API endpoints and frontend code removed.',
+        title: {
+          de: 'Release und Diagnose',
+          en: 'Release and diagnostics',
+        },
+        items: [
+          {
+            de: 'Build- und Runtime-Konfigurationen sind im Backend zentralisiert; /api/health und /api/system/version liefern verwendbare Versionsdaten für Diagnosezwecke.',
+            en: 'Build and runtime configuration are centralized in the backend; /api/health and /api/system/version now expose usable version data for diagnostics.',
+          },
+          {
+            de: 'Release-Version, Git SHA, Build-Datum und Build-Nummer bleiben auch mit CI-Overrides oder ohne Git-Metadaten robust anzeigbar.',
+            en: 'Release version, Git SHA, build date, and build number remain displayable even with CI overrides or without Git metadata.',
+          },
+        ],
       },
       {
-        de: 'Dokumentation für internationalen Einsatz auf Englisch überarbeitet.',
-        en: 'All documentation rewritten in English for international use.',
+        title: {
+          de: 'Admin und UX',
+          en: 'Admin and UX',
+        },
+        items: [
+          {
+            de: 'Mehrfachauswahl für Links, Sammel-Löschvorgänge und ein Bulk-Dialog für gemeinsame Icon-Änderungen erweitern den Admin-Workflow.',
+            en: 'Multi-select for links, batch deletion, and a bulk dialog for shared icon changes expand the admin workflow.',
+          },
+          {
+            de: 'Neue Dialoge für Link-Änderungen, Löschbestätigungen und Info-Ankündigungen verbessern Transparenz und Bedienbarkeit.',
+            en: 'New dialogs for link changes, delete confirmation, and info announcements improve transparency and usability.',
+          },
+          {
+            de: 'Die Import-Vorschau wurde für größere Datenmengen überarbeitet und reagiert beim Verschieben stabiler.',
+            en: 'The import preview was reworked for larger datasets and behaves more reliably during drag-and-drop.',
+          },
+        ],
       },
       {
-        de: 'MIT-Lizenz hinzugefügt.',
-        en: 'Added MIT license.',
+        title: {
+          de: 'Qualität und Konsistenz',
+          en: 'Quality and consistency',
+        },
+        items: [
+          {
+            de: 'Fehlerausgaben in Modals sind klarer, Theme-Wechsel laufen ohne visuelle Sprünge und Light-Theme-Details wurden nachgeschärft.',
+            en: 'Modal error feedback is clearer, theme switches avoid visible jumps, and light-theme details were refined.',
+          },
+          {
+            de: 'Mehrere UI-Texte und Systemhinweise wurden überarbeitet, damit Bedienung und Release-Kommunikation konsistenter wirken.',
+            en: 'Several UI texts and system hints were revised so interaction and release communication feel more consistent.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    version: 'v2.0.0',
+    date: '2026-04-08',
+    title: {
+      de: 'Portable Open-Source-Basis freigegeben',
+      en: 'Portable open-source baseline released',
+    },
+    summary: {
+      de: 'Die Anwendung wurde von projektspezifischer Infrastruktur gelöst und als portables Open-Source-Projekt neu aufgestellt.',
+      en: 'The application was detached from project-specific infrastructure and repositioned as a portable open-source project.',
+    },
+    highlights: [
+      {
+        de: 'Vendor-neutrale Bereinigung',
+        en: 'Vendor-neutral cleanup',
       },
       {
-        de: 'Umgebungsvariablen zur besseren Verständlichkeit umbenannt (FRONTEND_PORT zu APP_PORT).',
-        en: 'Renamed environment variables for clarity (FRONTEND_PORT to APP_PORT).',
+        de: 'Automatische Build-Metadaten',
+        en: 'Automatic build metadata',
+      },
+      {
+        de: 'Plattformneutraler Betrieb',
+        en: 'Platform-neutral operation',
+      },
+    ],
+    importantChanges: [
+      {
+        de: 'Bisherige Proxy-, Netzwerk- und Naming-Annahmen wurden entfernt oder umbenannt. Bestehende Deployments sollten Compose- und Env-Dateien auf den neuen Stand anheben.',
+        en: 'Previous proxy, network, and naming assumptions were removed or renamed. Existing deployments should align their compose and env files with the new baseline.',
+      },
+    ],
+    sections: [
+      {
+        title: {
+          de: 'Portabilität und Packaging',
+          en: 'Portability and packaging',
+        },
+        items: [
+          {
+            de: 'Hart codierte URLs, Hostnamen und vendor-spezifische Konfigurationen wurden entfernt.',
+            en: 'Hardcoded URLs, hostnames, and vendor-specific configuration were removed.',
+          },
+          {
+            de: 'Dokumentation, Branding-Texte und Lizenzierung wurden für die öffentliche Nutzung als Open-Source-Projekt aufbereitet.',
+            en: 'Documentation, branding text, and licensing were prepared for public open-source usage.',
+          },
+          {
+            de: 'Umgebungsvariablen und Benennung wurden bereinigt, damit Deployments verständlicher und reproduzierbarer bleiben.',
+            en: 'Environment variables and naming were cleaned up so deployments remain easier to understand and reproduce.',
+          },
+        ],
+      },
+      {
+        title: {
+          de: 'Build und Release-Sichtbarkeit',
+          en: 'Build and release visibility',
+        },
+        items: [
+          {
+            de: 'Die UI zeigt Release-Version, Git SHA, Build-Datum und Build-Nummer automatisch aus dem Build-Prozess an.',
+            en: 'The UI shows release version, Git SHA, build date, and build number automatically from the build pipeline.',
+          },
+          {
+            de: 'Frontend-Builds funktionieren auch in Docker- und CI-Umgebungen ohne verfügbares Git-Repository.',
+            en: 'Frontend builds continue to work in Docker and CI environments even when no Git repository is available.',
+          },
+        ],
+      },
+      {
+        title: {
+          de: 'Sicherheit und Runtime-Härtung',
+          en: 'Security and runtime hardening',
+        },
+        items: [
+          {
+            de: 'Healthchecks, Caching und Frontend-Bootstrapping wurden bereinigt, damit der Stack zuverlässiger startet.',
+            en: 'Health checks, caching, and frontend bootstrapping were cleaned up so the stack starts more reliably.',
+          },
+          {
+            de: 'Mehrere Sicherheitskorrekturen härten Import, Sanitizing und Icon-Verarbeitung zusätzlich ab.',
+            en: 'Several security fixes additionally harden import handling, sanitizing, and icon processing.',
+          },
+        ],
       },
     ],
   },
@@ -66,85 +236,81 @@ const APP_CHANGELOG: LocalizedChangelogEntry[] = [
     version: 'v1.6.0',
     date: '2026-04-07',
     title: {
-      de: 'Proxy, Deployment und Startverhalten stabilisiert',
-      en: 'Proxy, deployment, and startup behavior stabilized',
+      de: 'Reverse-Proxy-Verhalten, Startup und Versionsanzeige konsolidiert',
+      en: 'Reverse proxy behavior, startup, and version visibility consolidated',
     },
-    items: [
+    summary: {
+      de: 'Mehrere kurzfristige Proxy-, Startup- und Versionsanzeige-Änderungen wurden zu einem stabilen Zwischenrelease zusammengeführt.',
+      en: 'Several short-cycle proxy, startup, and version-visibility changes were combined into a stable intermediate release.',
+    },
+    highlights: [
       {
-        de: 'Der App-Start wurde für direkten Hostnamen-Zugriff und den Betrieb hinter Reverse Proxies vereinheitlicht.',
-        en: 'App startup unified for direct hostname access and operation behind reverse proxies.',
+        de: 'Reverse-Proxy-Stabilisierung',
+        en: 'Reverse proxy stabilization',
       },
       {
-        de: 'Frontend-Builds bleiben funktionsfähig, auch wenn Browser oder Proxy ein älteres Bundle cachen.',
-        en: 'Frontend builds remain functional even when browser or proxy caches an older bundle.',
+        de: 'Sichtbare Release-Metadaten',
+        en: 'Visible release metadata',
       },
       {
-        de: 'Die API-Anbindung zwischen Frontend und Backend für zuverlässige Container-Kommunikation bereinigt.',
-        en: 'API upstream between frontend and backend cleaned up for reliable container communication.',
-      },
-      {
-        de: 'HTTPS-Erkennung für Cookies hinter Reverse Proxies korrigiert.',
-        en: 'HTTPS detection for cookies behind reverse proxies corrected.',
-      },
-      {
-        de: 'README, .env-Beispiel und Installationspfad an den realen Produktiveinsatz angepasst.',
-        en: 'README, .env example, and installation path aligned with actual production use.',
+        de: 'Einfacherer Startpfad',
+        en: 'Simplified startup path',
       },
     ],
-  },
-  {
-    version: 'v1.5.0',
-    date: '2026-04-06',
-    title: {
-      de: 'Dashboard, Admin-Workflow und Versionshinweise erweitert',
-      en: 'Dashboard, admin workflow, and release notes expanded',
-    },
-    items: [
+    importantChanges: [
       {
-        de: 'Links können jetzt gruppenübergreifend zwischen beliebigen Einträgen platziert werden.',
-        en: 'Links can now be placed between any two entries across groups.',
-      },
-      {
-        de: 'Nach dem Wechsel der Gruppe wird die Zielgruppe sofort erkannt und die Sortierung bleibt bearbeitbar.',
-        en: 'After switching groups, the target group is recognized immediately and ordering remains editable.',
-      },
-      {
-        de: 'Im Bearbeitungsmodus öffnet ein Klick auf die gesamte Link-Karte die Bearbeitung; sichtbar bleibt nur das Löschsymbol.',
-        en: 'In edit mode, clicking the entire link card opens editing; only the delete icon remains visible.',
-      },
-      {
-        de: 'Import, Dashboard-Cache und lokale Gruppenverwaltung bleiben nach Änderungen ohne erzwungenes Neuladen synchron.',
-        en: 'Import, dashboard cache, and local group management stay in sync after changes without forced reload.',
-      },
-      {
-        de: 'Benutzerdefinierte Icons unterstützen mehr Formate, zeigen Originalnamen an und können direkt gelöscht werden.',
-        en: 'Custom icons support more formats, display original names, and can be deleted directly.',
-      },
-      {
-        de: 'Lesezeichen-Export und ein klickbarer Versionsdialog hinzugefügt, der neue Änderungen automatisch hervorhebt.',
-        en: 'Added bookmark export and a clickable version dialog that highlights new changes automatically.',
+        de: 'Dieser Eintrag fasst mehrere Zwischenstände vom selben Ausbauzyklus zusammen, die zuvor künstlich als eigene Releases geführt wurden.',
+        en: 'This entry combines several intermediate states from the same delivery cycle that were previously tracked as separate releases.',
       },
     ],
-  },
-  {
-    version: 'v1.4.0',
-    date: '2026-04-05',
-    title: {
-      de: 'Deployment erneuert und Container-Betrieb verbessert',
-      en: 'Deployment refresh and container operation improved',
-    },
-    items: [
+    sections: [
       {
-        de: 'Anwendungs-Deployment für den Produktiveinsatz aktualisiert und aufgeräumt.',
-        en: 'Application deployment updated and cleaned up for production use.',
+        title: {
+          de: 'Netzwerk und Proxy',
+          en: 'Networking and proxy',
+        },
+        items: [
+          {
+            de: 'Proxy-Timeouts, gzip/default_server, Cookie-Sicherheit hinter Reverse Proxies und die Backend-Upstream-Konfiguration wurden mehrfach nachgeschärft.',
+            en: 'Proxy timeouts, gzip/default_server behavior, secure cookies behind reverse proxies, and backend upstream configuration were refined repeatedly.',
+          },
+          {
+            de: 'Instabile Netzwerk-Experimente wurden zurückgenommen, bis ein belastbares Compose-Modell erreicht war.',
+            en: 'Unstable networking experiments were rolled back until a dependable compose model was reached.',
+          },
+        ],
       },
       {
-        de: 'Frontend- und Backend-Container für den gemeinsamen Betrieb stabilisiert.',
-        en: 'Frontend and backend containers stabilized for combined operation.',
+        title: {
+          de: 'Kompatibilität und Startverhalten',
+          en: 'Compatibility and startup behavior',
+        },
+        items: [
+          {
+            de: 'Runtime-config-Kompatibilität für gecachte Frontend-Bundles wurde gesichert und Browser-Startblocker entfernt.',
+            en: 'Runtime-config compatibility for cached frontend bundles was preserved and browser startup blockers were removed.',
+          },
+          {
+            de: 'Frontend und Backend starten zuverlässiger in der richtigen Reihenfolge.',
+            en: 'Frontend and backend now start more reliably in the correct order.',
+          },
+        ],
       },
       {
-        de: 'Plattformspezifische Reibung im Deployment entfernt.',
-        en: 'Removed platform-specific deployment friction.',
+        title: {
+          de: 'Release-Sichtbarkeit',
+          en: 'Release visibility',
+        },
+        items: [
+          {
+            de: 'Die sichtbare Release-Version wurde zentralisiert und um automatische Build-Nummern ergänzt.',
+            en: 'The visible release version was centralized and extended with automatic build numbers.',
+          },
+          {
+            de: 'Der Versionsdialog wurde als eigene UI eingeführt und anschließend erweitert.',
+            en: 'The version dialog was introduced as its own UI surface and then expanded.',
+          },
+        ],
       },
     ],
   },
@@ -152,61 +318,59 @@ const APP_CHANGELOG: LocalizedChangelogEntry[] = [
     version: 'v1.3.0',
     date: '2026-04-05',
     title: {
-      de: 'Persistente Datenspeicherung in Docker aktiviert',
-      en: 'Persistent data storage in Docker enabled',
+      de: 'Persistenz und Betriebsbasis gelegt',
+      en: 'Persistence and operational baseline established',
     },
-    items: [
+    summary: {
+      de: 'Nach dem Initial-Release wurde die technische Betriebsbasis für Datenhaltung, Login und Container-Deployment geschaffen.',
+      en: 'After the initial release, the technical operating baseline for persistence, login, and container deployment was established.',
+    },
+    highlights: [
       {
-        de: 'Backend-Daten werden jetzt in benannten Docker-Volumes gespeichert.',
-        en: 'Backend data is now stored in named Docker volumes.',
+        de: 'Named volumes',
+        en: 'Named volumes',
       },
       {
-        de: 'Datenbank und Uploads bleiben bei Container-Neustarts und Updates erhalten.',
-        en: 'Database and uploads survive container restarts and updates.',
+        de: 'Admin-Login-Fixes',
+        en: 'Admin login fixes',
       },
       {
-        de: 'Der Docker-Betrieb ist robuster gegen versehentlichen Datenverlust geworden.',
-        en: 'Docker operation made more robust against accidental data loss.',
+        de: 'Deployment-Refresh',
+        en: 'Deployment refresh',
       },
     ],
-  },
-  {
-    version: 'v1.2.0',
-    date: '2026-04-05',
-    title: {
-      de: 'Admin-Login hinter Proxy und CORS stabilisiert',
-      en: 'Admin login behind proxy and CORS stabilized',
-    },
-    items: [
+    sections: [
       {
-        de: 'CORS-Verhalten für den Admin-Login korrigiert.',
-        en: 'CORS behavior for admin login corrected.',
+        title: {
+          de: 'Persistenz und Deployment',
+          en: 'Persistence and deployment',
+        },
+        items: [
+          {
+            de: 'SQLite-Daten und Uploads wurden in named volumes verschoben, damit Updates keine Nutzdaten überschreiben.',
+            en: 'SQLite data and uploads were moved into named volumes so updates no longer overwrite user data.',
+          },
+          {
+            de: 'Das Container-Deployment wurde für Docker- und Portainer-Betrieb aufgeräumt und Node-Versionen klarer abgesichert.',
+            en: 'Container deployment was cleaned up for Docker and Portainer usage, and Node version requirements were made more explicit.',
+          },
+        ],
       },
       {
-        de: 'Cookie-Verarbeitung hinter Proxy und Reverse Proxy funktioniert zuverlässiger.',
-        en: 'Cookie handling behind proxy and reverse proxy works more reliably.',
-      },
-      {
-        de: 'Die Authentifizierung zwischen Frontend und Backend ist jetzt stabiler.',
-        en: 'Authentication between frontend and backend is now more stable.',
-      },
-    ],
-  },
-  {
-    version: 'v1.1.0',
-    date: '2026-03-08',
-    title: {
-      de: 'Erste Erweiterung nach dem Initial-Release',
-      en: 'First expansion after initial release',
-    },
-    items: [
-      {
-        de: 'Projektstruktur, Konfiguration und grundlegende Workflows verfeinert.',
-        en: 'Project structure, configuration, and basic workflows refined.',
-      },
-      {
-        de: 'Diese Version markiert die erste Entwicklungsiteration nach v1.0.0.',
-        en: 'This version marks the first development iteration after v1.0.0.',
+        title: {
+          de: 'Zugriff und Authentifizierung',
+          en: 'Access and authentication',
+        },
+        items: [
+          {
+            de: 'Admin-Login, CORS und Proxy-Cookies wurden korrigiert, damit Authentifizierung hinter Proxy-Szenarien zuverlässig funktioniert.',
+            en: 'Admin login, CORS, and proxy cookie handling were corrected so authentication works reliably behind proxy setups.',
+          },
+          {
+            de: 'Die ersten README- und Infrastruktur-Anpassungen für produktionsnähere Nutzung wurden ergänzt.',
+            en: 'The first README and infrastructure refinements for more production-like usage were added.',
+          },
+        ],
       },
     ],
   },
@@ -217,14 +381,40 @@ const APP_CHANGELOG: LocalizedChangelogEntry[] = [
       de: 'Erstveröffentlichung',
       en: 'Initial release',
     },
-    items: [
+    summary: {
+      de: 'Erster lauffähiger Stand von AppLauncher mit React-Frontend, Node/Express-Backend und Docker-basierter Auslieferung.',
+      en: 'First working AppLauncher baseline with a React frontend, Node/Express backend, and Docker-based delivery.',
+    },
+    highlights: [
       {
-        de: 'Grundprojekt mit Frontend, Backend und Docker-Struktur erstellt.',
-        en: 'Base project with frontend, backend, and Docker structure created.',
+        de: 'Dashboard-Grundlage',
+        en: 'Dashboard foundation',
       },
       {
-        de: 'Erste lauffähige Version des AppLaunchers.',
-        en: 'First working version of the AppLauncher.',
+        de: 'Admin-Backend',
+        en: 'Admin backend',
+      },
+      {
+        de: 'Docker-Startpunkt',
+        en: 'Docker starting point',
+      },
+    ],
+    sections: [
+      {
+        title: {
+          de: 'Grundlage',
+          en: 'Foundation',
+        },
+        items: [
+          {
+            de: 'Frontend, Backend, Compose-Stack und initiale Build-Konfiguration wurden als gemeinsames Grundprojekt angelegt.',
+            en: 'Frontend, backend, compose stack, and initial build configuration were created as the shared project foundation.',
+          },
+          {
+            de: 'Die erste lauffähige Dashboard- und Admin-Struktur war damit einsatzbereit.',
+            en: 'The first working dashboard and admin structure was ready for use.',
+          },
+        ],
       },
     ],
   },
@@ -235,7 +425,14 @@ export const getAppChangelog = (language: PreferredLanguage): ChangelogEntry[] =
     version: entry.version,
     date: entry.date,
     title: entry.title[language],
-    items: entry.items.map((item) => item[language]),
+    summary: entry.summary[language],
+    highlights: entry.highlights.map((item) => item[language]),
+    importantChanges: (entry.importantChanges || []).map((item) => item[language]),
+    sections: entry.sections.map((section) => ({
+      title: section.title[language],
+      items: section.items.map((item) => item[language]),
+    })),
   }));
 
-export const getLatestChangelogEntry = (): LocalizedChangelogEntry | undefined => APP_CHANGELOG[0];
+export const getLatestChangelogEntry = (language: PreferredLanguage): ChangelogEntry | undefined =>
+  getAppChangelog(language)[0];

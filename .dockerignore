@@ -23,6 +23,7 @@ data/
 backend/data/
 uploads/
 backend/uploads/
+.manual-runtime/
 backups/
 *.sqlite
 *.db

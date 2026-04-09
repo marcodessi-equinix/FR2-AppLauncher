@@ -1,6 +1,7 @@
 import type express from 'express';
+import { runtimeConfig } from '../config/runtime';
 
-const explicitAllowedOrigins = (process.env.FRONTEND_URL || '')
+const explicitAllowedOrigins = runtimeConfig.frontendUrl
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);

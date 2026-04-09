@@ -278,7 +278,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
   };
 
   return (
-    <div className="flex flex-col h-[680px] lg:h-[740px] bg-card overflow-hidden">
+    <div className="icon-picker-shell flex flex-col h-[680px] lg:h-[740px] bg-card overflow-hidden">
       {/* Tab Navigation */}
       <div className="flex border-b border-border bg-muted/30 p-2 gap-2">
         {iconPickerTabs.map((tab) => (
@@ -292,7 +292,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
             type="button"
             className={cn(
               "flex-1 py-3 text-xs font-bold rounded-lg transition-colors uppercase tracking-widest",
-              activeTab === tab.id ? "bg-background shadow-md text-accent border border-accent/20" : "text-muted-foreground hover:bg-background/40"
+              activeTab === tab.id ? "bg-background shadow-md text-primary border border-primary/20" : "text-muted-foreground hover:bg-background/40"
             )}
           >
             {tab.label}
@@ -306,7 +306,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
             {/* Search Bar */}
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-accent animate-spin" />}
+              {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary animate-spin" />}
               <input
                 type="text"
                 autoFocus
@@ -327,7 +327,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                     className={cn(
                       'px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-colors',
                       toneFilter === filter.id
-                        ? 'bg-background text-accent shadow-sm border border-accent/20'
+                        ? 'bg-background text-primary shadow-sm border border-primary/20'
                         : 'text-muted-foreground hover:bg-background/50'
                     )}
                   >
@@ -348,7 +348,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                   onClick={() => { onChange(name); onClose(); }}
                   className={cn(
                     "p-4 rounded-xl flex flex-col items-center justify-center gap-2.5 hover:bg-accent/10 transition-colors border border-transparent hover:border-accent/20 group h-[118px]",
-                    value === name ? "bg-accent/15 text-accent border-accent/40 shadow-inner" : "text-muted-foreground"
+                    value === name ? "bg-primary/10 text-primary border-primary/35 shadow-inner" : "text-muted-foreground"
                   )}
                   title={name}
                 >
@@ -387,7 +387,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
             )}
 
             {/* Upload button row */}
-            <label className={cn("cursor-pointer flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl border border-dashed border-accent/40 bg-accent/5 hover:bg-accent/10 transition-colors text-accent text-xs font-bold uppercase tracking-widest", uploading && "opacity-50 pointer-events-none")}>
+            <label className={cn("cursor-pointer flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl border border-dashed border-accent/40 bg-accent/5 hover:bg-accent/10 transition-colors text-primary text-xs font-bold uppercase tracking-widest", uploading && "opacity-50 pointer-events-none")}>
               {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
               {uploading ? t('iconPicker.uploading') : t('iconPicker.newUpload')}
               <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={uploading} />
@@ -402,11 +402,11 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
             {/* Uploaded icons grid */}
             {loadingUploaded ? (
               <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
             ) : uploadedIcons.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border/40 rounded-xl p-8 text-center space-y-3 bg-muted/5">
-                <div className="p-4 bg-accent/10 rounded-full text-accent">
+                <div className="p-4 bg-accent/10 rounded-full text-primary">
                   <Upload className="h-8 w-8" />
                 </div>
                 <p className="text-xs font-black uppercase tracking-tight">{t('iconPicker.noUploads')}</p>
@@ -423,7 +423,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, onClose
                     key={icon.filename}
                     className={cn(
                       'relative rounded-xl border transition-colors h-[148px]',
-                      value === icon.url ? 'border-accent/40 bg-accent/10 shadow-inner' : 'border-transparent hover:border-accent/20'
+                      value === icon.url ? 'border-primary/35 bg-primary/10 shadow-inner' : 'border-transparent hover:border-accent/20'
                     )}
                   >
                     <button

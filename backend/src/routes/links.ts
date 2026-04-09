@@ -19,6 +19,14 @@ const LinkSchema = z.object({
   order: z.coerce.number().int().min(0).max(100000).optional().default(0),
 });
 
+const BulkLinkIconSchema = z.object({
+  ids: z.array(z.coerce.number().int().positive()).min(1).max(500),
+  icon: z.preprocess(
+    (value) => typeof value === 'string' ? value.trim() : value,
+    z.string().max(160).optional()
+  ).refine((value) => value === undefined || isAllowedIconValue(value), { message: 'Invalid icon value' }),
+});
+
 // GET all links
 router.get('/', (req, res) => {
   const links = db.prepare('SELECT * FROM links ORDER BY "order" ASC').all();
@@ -54,6 +62,51 @@ router.post('/', requireTrustedOrigin, requireAdmin, (req, res) => {
     res.json({ id: info.lastInsertRowid, group_id, title, url, description, icon: normalizedIcon, order });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create link' });
+  }
+});
+
+// PUT bulk update link icons
+router.put('/bulk/icon', requireTrustedOrigin, requireAdmin, (req, res) => {
+  const result = BulkLinkIconSchema.safeParse(req.body);
+  if (!result.success) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  const ids = Array.from(new Set(result.data.ids));
+  const normalizedIcon = normalizeStoredIconValue(result.data.icon);
+
+  try {
+    const placeholders = ids.map(() => '?').join(', ');
+    const existing = db
+      .prepare(`SELECT id FROM links WHERE id IN (${placeholders})`)
+      .all(...ids) as Array<{ id: number }>;
+
+    if (existing.length !== ids.length) {
+      return res.status(404).json({ error: 'One or more links were not found' });
+    }
+
+    const updateStmt = db.prepare('UPDATE links SET icon = ? WHERE id = ?');
+    const selectStmt = db.prepare('SELECT * FROM links WHERE id = ?');
+
+    const updatedLinks = db.transaction((linkIds: number[]) => {
+      const updated: unknown[] = [];
+
+      for (const id of linkIds) {
+        updateStmt.run(normalizedIcon, id);
+        updated.push(selectStmt.get(id));
+      }
+
+      return updated;
+    })(ids);
+
+    db.prepare('INSERT INTO audit_logs (action, details) VALUES (?, ?)').run(
+      'BULK_UPDATE_LINK_ICON',
+      JSON.stringify({ ids, icon: normalizedIcon })
+    );
+
+    res.json({ success: true, links: updatedLinks });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to bulk update link icons' });
   }
 });
 

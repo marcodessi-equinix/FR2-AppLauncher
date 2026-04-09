@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Save, ChevronDown, Check } from 'lucide-react';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 import { Group, Link } from '../../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStore } from '../../store/useStore';
@@ -64,6 +64,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   const selectedGroup = groups.find((group) => group.id === groupId) || groups[0] || null;
+  const hasAvailableGroups = groups.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     // ... (keep existing logic)
@@ -92,6 +93,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
       onClose();
     } catch (error) {
       console.error('Failed to save link', error);
+      alert(getErrorMessage(error, t('common.requestFailed')));
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +105,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
         className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
-      <Card className="w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto flex flex-col relative z-10 rounded-3xl overflow-hidden bg-card/95 border-white/10">
+      <Card className="light-modal-card w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto flex flex-col relative z-10 rounded-3xl overflow-hidden bg-card/95 border-white/10">
         <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] pb-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">
             {link ? t('links.editLink') : t('links.newLink')}
@@ -121,16 +123,21 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
           <CardContent className="space-y-4 pt-5 flex-1">
+            {!hasAvailableGroups ? (
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-200/90">
+                {t('links.noGroupsAvailable')}
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-4">
                <div className="space-y-2">
-                <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.group')}</label>
+                <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.group')}</label>
                 <Popover open={isGroupPickerOpen} onOpenChange={setIsGroupPickerOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
                       title={t('links.selectGroup')}
                       aria-label={t('links.selectGroup')}
-                      className="w-full h-10 px-3 rounded-xl glass-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-colors duration-200 bg-background/50 border border-input flex items-center justify-between gap-3"
+                      className="light-modal-input w-full h-10 px-3 rounded-xl glass-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-colors duration-200 bg-background/50 border border-input flex items-center justify-between gap-3"
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
                         {selectedGroup?.icon ? (
@@ -145,7 +152,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                       <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isGroupPickerOpen && 'rotate-180')} />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent align="start" className="w-[--radix-popover-trigger-width] min-w-[260px] p-2 rounded-2xl border-white/10 bg-card/95 backdrop-blur-xl">
+                  <PopoverContent align="start" className="light-modal-popover w-[--radix-popover-trigger-width] min-w-[260px] p-2 rounded-2xl border-white/10 bg-card/95 backdrop-blur-xl">
                     <div className="max-h-72 overflow-y-auto pr-1 custom-scrollbar">
                       {groups.map((group) => {
                         const isSelected = group.id === groupId;
@@ -161,7 +168,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                             className={cn(
                               'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
                               isSelected
-                                ? 'bg-accent/15 text-foreground border border-accent/20'
+                                ? 'bg-primary/10 text-foreground border border-primary/20 shadow-sm'
                                 : 'border border-transparent text-muted-foreground hover:bg-[hsl(var(--glass-highlight)/0.05)] hover:text-foreground'
                             )}
                           >
@@ -177,7 +184,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                               )}
                               <span className="truncate text-sm font-medium">{group.title}</span>
                             </span>
-                            {isSelected ? <Check className="h-4 w-4 shrink-0 text-accent" /> : null}
+                            {isSelected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
                           </button>
                         );
                       })}
@@ -186,7 +193,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                 </Popover>
               </div>
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.order')}</label>
+                <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.order')}</label>
                 <Input
                   type="number"
                   value={order}
@@ -196,7 +203,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.title')}</label>
+              <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.title')}</label>
               <Input
                 type="text"
                 required
@@ -207,7 +214,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.url')}</label>
+              <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.url')}</label>
               <Input
                 type="url"
                 required
@@ -218,7 +225,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('links.descriptionOptional')}</label>
+              <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('links.descriptionOptional')}</label>
               <Input
                 type="text"
                 value={description}
@@ -228,7 +235,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.icon')}</label>
+              <label className="modal-field-label text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.2em] pl-1">{t('common.icon')}</label>
               <div className="flex gap-3 items-center">
                 {icon && (
                   <div className="h-10 w-10 rounded-xl glass-surface flex items-center justify-center overflow-hidden">
@@ -239,7 +246,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
                   type="button"
                   variant="secondary"
                   onClick={() => setShowIconPicker(true)}
-                  className="flex-1 rounded-xl"
+                  className="light-modal-secondary flex-1 rounded-xl"
                 >
                   {icon ? t('groups.changeIcon') : t('groups.selectIcon')}
                 </Button>
@@ -258,7 +265,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !hasAvailableGroups}
               className="gap-2 rounded-xl"
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -275,7 +282,7 @@ export const ManageLinkModal: React.FC<ManageLinkModalProps> = ({ isOpen, onClos
             className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={() => setShowIconPicker(false)}
           />
-          <Card className="w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
+          <Card className="light-modal-card w-full max-w-6xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 relative z-10 rounded-3xl bg-card border-white/10">
             <CardHeader className="flex flex-row items-center justify-between border-b border-[hsl(var(--glass-border)/0.05)] py-4 px-6">
               <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/90">{t('groups.selectIcon')}</h3>
               <button 

@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="frontend/public/FR2%20App%20Launcher%20logo%20preview.png" alt="FR2 App Launcher Preview" width="100%" />
+  <img src="frontend/public/FR2%20App%20Launcher%20logo%20preview.png" alt="AppLauncher Preview" width="100%" />
 </p>
 
 <h1 align="center">AppLauncher</h1>
 
 <p align="center">
   A self-hosted dashboard for organizing internal links, tools, and services.<br/>
-  Deploy anywhere with Docker — no hardcoded URLs, no vendor lock-in.
+  Direct host-port deployment by default, optional proxy-only deployment over an external reverse-proxy network.
 </p>
 
 <p align="center">
@@ -23,102 +23,135 @@
 
 ## Overview
 
-AppLauncher is a lightweight, self-hosted web application for organizing and sharing internal links across a team. The core dashboard runs entirely in your own stack; optional convenience features such as weather data and icon-library search can talk to external providers.
+AppLauncher is a lightweight, self-hosted web application for organizing and sharing internal links across a team.
 
-**Key features:**
+It supports two production-ready deployment modes:
+
+- `docker-compose.yml` for direct access over a published host port
+- `docker-compose.proxy.yml` for proxy-only access through an existing reverse-proxy network such as Nginx Proxy Manager
+
+## Key Features
 
 - Visual link dashboard with drag-and-drop group and link ordering
 - Admin panel with login, link management, icon uploads, and bookmark import/export
-- Per-user favorites via browser fingerprinting (no accounts needed for viewers)
-- System info widget with rich-text editor
+- Per-user favorites via browser fingerprinting
 - Dark / light theme with language toggle (EN/DE)
-- Central release version with automatic Git/build metadata in the UI
-- Persistent data via Docker volumes — survives container rebuilds
-- Local-only storage for admin content edits — no browser-side auto-translation requests
-
-## Preview
-
-<p align="center">
-  <img src="frontend/public/FR2%20App%20Launcher%20logo%20full.png" alt="FR2 App Launcher Full Logo" width="100%" />
-</p>
+- Build and release metadata in the UI
+- Persistent data via named volumes
 
 ## Quick Start
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/engine/install/) with Compose **or** [Podman](https://podman.io/docs/installation) with podman-compose
+- [Docker](https://docs.docker.com/engine/install/) with Compose or [Podman](https://podman.io/docs/installation) with `podman compose`
 
 ### Option A: Interactive Install Script
 
 ```bash
-git clone https://github.com/marcodessi-equinix/AppLauncher.git
+git clone <your-repository-url>
 cd AppLauncher
 bash install.sh
 ```
 
-The script auto-detects Docker or Podman, generates a secure `.env`, builds the containers, and prints the access URL.
+The script creates a direct-access `.env`, starts `docker-compose.yml`, and prints the local URL.
 
-### Option B: Manual Setup
+### Option B: Direct Host-Port Deployment
+
+Use this when the app should be reachable directly on the VM or host.
 
 ```bash
-git clone https://github.com/marcodessi-equinix/AppLauncher.git
+git clone <your-repository-url>
 cd AppLauncher
 cp .env.example .env
 ```
 
-Edit `.env` — copy this template and fill in your values:
+Set at least:
 
 ```env
-# ── Required ──────────────────────────────────
 JWT_SECRET=PASTE_A_RANDOM_64_CHAR_HEX_STRING_HERE
 ADMIN_PASSWORD=CHANGE_ME_TO_A_STRONG_PASSWORD
-
-# ── Reverse Proxy ─────────────────────────────
-# Name of your proxy's Docker network (find with: docker network ls)
-NPM_NETWORK=nginx-proxy-manager_default
-
-# ── Optional (defaults shown) ─────────────────
-# APP_PORT=9020
-# COOKIE_SECURE=auto
-# FRONTEND_URL=https://applauncher.example.com
+APP_PORT=9020
+COOKIE_SECURE=auto
 ```
 
-> **Tip:** Generate a secure JWT secret with: `openssl rand -hex 32`
-
-Then start the stack:
+Start the stack:
 
 ```bash
 docker compose up -d --build
 ```
 
-The app will be available at **http://localhost:9020** (or whatever you set `APP_PORT` to).
+Default access URL:
 
-### Option C: Portainer / Stack Manager
+```text
+http://localhost:9020
+```
 
-1. Create a new stack from this Git repository.
-2. Set the compose file to `docker-compose.yml`.
-3. Add environment variables:
-   - `JWT_SECRET` — a random 64-char hex string
-   - `ADMIN_PASSWORD` — your admin password
-   - `NPM_NETWORK` — name of your reverse proxy's Docker network (e.g. `nginx-proxy-manager_default`)
-   - `COOKIE_SECURE` — set to `true` if your proxy terminates SSL
-4. Deploy.
-5. In NPM, create a proxy host: hostname `applauncher-frontend`, port `80`, scheme `http`.
+### Option C: Proxy-Only Deployment
+
+Use this when the app should only be reachable through an existing reverse proxy such as Nginx Proxy Manager.
+
+```bash
+git clone <your-repository-url>
+cd AppLauncher
+cp .env.proxy.example .env
+```
+
+Set at least:
+
+```env
+JWT_SECRET=PASTE_A_RANDOM_64_CHAR_HEX_STRING_HERE
+ADMIN_PASSWORD=CHANGE_ME_TO_A_STRONG_PASSWORD
+FRONTEND_URL=https://applauncher.example.com
+NPM_NETWORK=nginx-proxy-manager_default
+PROXY_FRONTEND_ALIAS=applauncher-frontend
+COOKIE_SECURE=true
+```
+
+Start the proxy stack:
+
+```bash
+docker compose -f docker-compose.proxy.yml up -d --build
+```
+
+Important behavior in proxy mode:
+
+- No frontend host ports are published
+- The backend is never published to the host
+- The frontend joins the external proxy network from `NPM_NETWORK`
+- Your reverse proxy must target `PROXY_FRONTEND_ALIAS:80` over that network
+
+For Nginx Proxy Manager, use:
+
+- Forward Hostname / IP: `applauncher-frontend`
+- Forward Port: `80`
+- Scheme: `http`
+
+If you change `PROXY_FRONTEND_ALIAS`, use that value in NPM instead.
 
 ## Configuration
 
-All configuration is done via environment variables. Copy `.env.example` to `.env` and adjust as needed.
-
 | Variable | Description | Default |
 | --- | --- | --- |
-| `JWT_SECRET` | **Required.** Secret for signing auth tokens (min 32 chars). | — |
-| `ADMIN_PASSWORD` | **Required.** Admin login password. | — |
-| `APP_PORT` | Host port the app listens on. | `9020` |
-| `COOKIE_SECURE` | Cookie security: `auto`, `true`, or `false`. | `auto` |
-| `NPM_NETWORK` | Docker network name of your reverse proxy (see [Reverse Proxy](#reverse-proxy)). | `nginx-proxy-manager_default` |
-| `FRONTEND_URL` | Optional public URL for stricter origin matching behind proxies. | — |
+| `JWT_SECRET` | Required. Secret for signing auth tokens (min 32 chars). | none |
+| `ADMIN_PASSWORD` | Required. Admin login password. | none |
+| `APP_PORT` | Host port for direct deployment via `docker-compose.yml`. | `9020` |
+| `COOKIE_SECURE` | Cookie security: `auto`, `true`, or `false`. | `auto` in direct mode |
+| `FRONTEND_URL` | Public browser URL. Required in proxy mode, optional otherwise. | none |
+| `NPM_NETWORK` | External Docker/Podman network shared with your reverse proxy. | none |
+| `PROXY_FRONTEND_ALIAS` | Internal DNS alias used by the frontend on the proxy network. | `applauncher-frontend` |
+| `DATABASE_PATH` | Optional SQLite path override inside the backend container. | `/app/data/applauncher.db` |
+| `UPLOAD_PATH` | Optional upload path override inside the backend container. | `/app/uploads/icons` |
+| `APP_VERSION` | Optional build/release version override. | root `package.json` version |
+| `APP_GIT_SHA` | Optional Git SHA override. | auto when available |
+| `APP_BUILD_DATE` | Optional build date override. | auto when available |
+| `APP_BUILD_TIME` | Optional build time override. | auto when available |
+| `APP_BUILD_NUMBER` | Optional CI build number override. | auto when available |
 
-> **Note:** `COOKIE_SECURE=auto` detects HTTPS via `X-Forwarded-Proto`. If your reverse proxy does not forward this header, set `COOKIE_SECURE=true` explicitly when using HTTPS.
+Notes:
+
+- `COOKIE_SECURE=auto` honors `X-Forwarded-Proto` when present and otherwise follows the incoming request.
+- In proxy mode, `FRONTEND_URL` should be the exact external HTTPS URL served to users.
+- `docker-compose.proxy.yml` intentionally has no `ports:` section for the frontend.
 
 ## Architecture
 
@@ -128,52 +161,63 @@ flowchart LR
     Proxy["Reverse Proxy (optional)"]
     Frontend[Frontend Container\nNginx + React SPA]
     Backend[Backend Container\nNode.js + Express]
-    DB[(SQLite)]
-    Uploads[(Uploads)]
+    DB[(SQLite volume)]
+    Uploads[(Uploads volume)]
 
-    User --> Proxy --> Frontend
     User --> Frontend
+    User --> Proxy --> Frontend
     Frontend -- "/api/*" --> Backend
     Backend --> DB
     Backend --> Uploads
 ```
 
-- **Frontend** serves the React SPA via Nginx and reverse-proxies `/api/` and `/uploads/` to the backend.
-- **Backend** is only reachable inside the Docker network — never exposed to the host.
-- **Data** is stored in named Docker volumes, persisting across rebuilds.
-
-## Tech Stack
-
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 19, Vite 7, TypeScript, Zustand, React Query |
-| UI | Tailwind CSS, Radix UI, Lucide Icons, dnd-kit |
-| Backend | Node.js 22, Express 5, TypeScript, Zod |
-| Database | SQLite (via built-in `node:sqlite`) |
-| Web Server | Nginx (Alpine) |
-| Containers | Docker Compose / Podman Compose |
+- `docker-compose.yml` is the direct host-port stack.
+- `docker-compose.proxy.yml` is the proxy-only stack.
+- The backend is not published to the host in either mode.
+- Database and uploads live in named volumes, not bind-mounted project folders.
 
 ## Operations
 
 ### Update
 
+Direct mode:
+
 ```bash
-git pull
 docker compose up -d --build
 ```
 
-App data is preserved — only the code is rebuilt.
+Proxy mode:
+
+```bash
+docker compose -f docker-compose.proxy.yml up -d --build
+```
 
 ### Stop
+
+Direct mode:
 
 ```bash
 docker compose down
 ```
 
+Proxy mode:
+
+```bash
+docker compose -f docker-compose.proxy.yml down
+```
+
 ### Logs
+
+Direct mode:
 
 ```bash
 docker compose logs -f
+```
+
+Proxy mode:
+
+```bash
+docker compose -f docker-compose.proxy.yml logs -f
 ```
 
 ### Backup
@@ -182,115 +226,81 @@ docker compose logs -f
 ./backup.sh
 ```
 
-Creates a timestamped `.tar.gz` of the database and uploaded icons.
+Creates a timestamped `.tar.gz` from the named database and uploads volumes.
 
 ### Restore
 
 ```bash
-./restore.sh backups/applauncher_backup_20260407_120000.tar.gz
+./restore.sh backups/applauncher_backup_20260409_120000.tar.gz
 ```
 
-Stops the stack, restores data, then you restart manually.
+Non-interactive restore:
+
+```bash
+./restore.sh --yes backups/applauncher_backup_20260409_120000.tar.gz
+```
+
+The restore script stops the running stack, restores both volumes, and leaves the final startup to your chosen compose command.
 
 ## Local Development
 
 Requires **Node.js 22+**.
-
-If `npm run dev` starts the frontend but the backend stays unreachable, check `node -v` first. The backend uses the built-in `node:sqlite` module and will crash immediately on Node 20 with `No such built-in module: node:sqlite`.
 
 ```bash
 npm install
 npm run dev
 ```
 
-This starts the backend (with hot-reload) and the Vite dev server concurrently. Default dev credentials:
-
-- Admin password: `1234`
-- JWT secret: auto-generated dev default
-
-### Useful Commands
+Useful commands:
 
 ```bash
-npm run build        # Build both frontend and backend
-npm run test         # Run backend tests
-npm run lint         # Lint frontend
+npm run build
+npm run lint
+npm test
 ```
 
 ## Project Structure
 
-```
-├── backend/              # Express API, SQLite, auth, routes
-│   └── src/
-│       ├── app.ts        # Server entry point
-│       ├── db/           # Database init & migrations
-│       ├── routes/       # API route handlers
-│       ├── controllers/  # Request handlers
-│       ├── services/     # Business logic
-│       └── middleware/    # Auth middleware
-├── frontend/             # React SPA
-│   ├── nginx.conf        # Production nginx config
-│   └── src/
-│       ├── components/   # UI components
-│       ├── lib/          # API client, utilities
-│       ├── store/        # Zustand state
-│       └── types/        # TypeScript types
-├── docker/               # Container entrypoints
-├── nginx/                # Reference nginx config for host-level proxy
-├── docker-compose.yml    # Stack definition
-├── Dockerfile.backend    # Backend multi-stage build
-├── Dockerfile.frontend   # Frontend build + Nginx runtime
-├── install.sh            # Interactive setup script
-├── backup.sh             # Data backup script
-├── restore.sh            # Data restore script
-└── .env.example          # Configuration template
+```text
+backend/                 Express API, SQLite, auth, routes
+frontend/                React SPA
+docker/                  Container entrypoints
+nginx/                   Example host-level reverse proxy config
+docker-compose.yml       Direct host-port stack
+docker-compose.proxy.yml Proxy-only stack for external reverse-proxy networks
+Dockerfile.backend       Backend multi-stage build
+Dockerfile.frontend      Frontend build + Nginx runtime
+install.sh               Interactive direct-mode setup
+backup.sh                Volume backup script
+restore.sh               Volume restore script
+.env.example             Direct deployment example
+.env.proxy.example       Proxy deployment example
 ```
 
-## Reverse Proxy
+## Reverse Proxy Notes
 
-AppLauncher works out-of-the-box with Nginx Proxy Manager (NPM), Traefik, Caddy, or any other reverse proxy.
+AppLauncher does not require a reverse proxy to run. Use `docker-compose.yml` for direct access, or `docker-compose.proxy.yml` when the app should only be reachable through an external proxy network.
 
-The frontend container automatically joins your proxy's Docker network so the proxy can reach it directly — no host-port forwarding tricks needed.
+When switching between direct and proxy mode, stop the currently running stack first so Compose can recreate the containers with the correct network and port model.
 
-### Setup
-
-1. Find your proxy's Docker network name:
-   ```bash
-   docker network ls
-   ```
-   Common names: `npm_proxy`, `nginx-proxy-manager_default`, `proxy`.
-
-2. Set `NPM_NETWORK` in your `.env` or Portainer environment:
-   ```env
-   NPM_NETWORK=nginx-proxy-manager_default
-   ```
-
-3. In your proxy manager, create a proxy host:
-   - **Forward Hostname / IP:** `applauncher-frontend`
-   - **Forward Port:** `80`
-   - **Scheme:** `http`
-   - **SSL:** request/enable certificate as usual
-
-4. Set `COOKIE_SECURE=true` if your proxy terminates SSL.
-
-> The app is also reachable directly via `http://<host-ip>:<APP_PORT>` (default `9020`) for testing without a proxy.
+If you prefer a host-level reverse proxy instead of Docker-network attachment, point your host proxy at `http://127.0.0.1:<APP_PORT>`.
 
 ## Security
 
-- Admin sessions use JWT tokens stored in HTTP-only cookies.
-- State-changing admin requests are restricted to trusted same-origin browser requests.
-- Rate limiting on login attempts (10 per 15 minutes per IP).
-- Exclusive admin session lock — only one admin can be active at a time.
-- HTML input is sanitized server-side via `sanitize-html`.
-- File uploads are restricted to image types with size limits.
-- The backend is never exposed outside the Docker network.
-- The app refuses to start with weak credentials in production mode.
+- Admin sessions use JWT tokens stored in HTTP-only cookies
+- State-changing admin requests are restricted to trusted same-origin browser requests
+- Rate limiting on login attempts
+- HTML input is sanitized server-side via `sanitize-html`
+- File uploads are restricted to image types with size limits
+- The backend is not published to the host
+- The app refuses to start with weak credentials in production mode
 
 ## External Services
 
-- The dashboard itself is self-hosted.
-- The weather widget fetches forecast data from Open-Meteo.
-- Icon library search and some icon rendering paths can use Iconify's public API.
-- If you want a fully isolated deployment, you can disable those convenience features in your own fork or network policy.
+- The dashboard itself is self-hosted
+- The weather widget fetches forecast data from Open-Meteo
+- Icon library search can use Iconify's public API
+- Google Fonts are loaded by the frontend stylesheet in the current design
 
 ## License
 

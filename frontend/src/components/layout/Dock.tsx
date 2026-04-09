@@ -7,6 +7,11 @@ import { cn } from '../../lib/utils';
 import { VersionChangelogDialog } from './VersionChangelogDialog';
 import { useAppVersion } from '../../lib/version';
 import { useI18n } from '../../lib/i18n';
+import {
+  DASHBOARD_ALL_CATEGORY,
+  DASHBOARD_FAVORITES_CATEGORY,
+  getGroupCategoryValue,
+} from '../../lib/dashboardCategories';
 
 export const Dock: React.FC = () => {
   const { t } = useI18n();
@@ -14,7 +19,7 @@ export const Dock: React.FC = () => {
   const activeCategory = useStore((state) => state.activeCategory);
   const setActiveCategory = useStore((state) => state.setActiveCategory);
   const favorites = useStore((state) => state.favorites);
-  const { releaseVersion, gitSha, buildDate, buildNumber, displayVersion } = useAppVersion();
+  const { releaseVersion, gitSha, buildDate, buildTime, buildNumber, displayVersion } = useAppVersion();
   const [isVersionDialogOpen, setIsVersionDialogOpen] = React.useState(false);
 
   const handleVersionDialogChange = React.useCallback((open: boolean) => {
@@ -28,6 +33,7 @@ export const Dock: React.FC = () => {
   const categories = React.useMemo(() => {
     return groups.map(g => ({
       id: `group-${g.id}`,
+      category: getGroupCategoryValue(g.id),
       title: g.title,
       icon: g.icon || 'Folder', 
     }));
@@ -43,16 +49,16 @@ export const Dock: React.FC = () => {
           <DockItem 
             icon={LayoutGrid} 
             label={t('dock.allApps')} 
-            isActive={activeCategory === 'all' || activeCategory === null}
-            onClick={() => handleCategoryClick('all')}
+            isActive={activeCategory === DASHBOARD_ALL_CATEGORY || activeCategory === null}
+            onClick={() => handleCategoryClick(DASHBOARD_ALL_CATEGORY)}
           />
 
           {favorites.length > 0 && (
             <DockItem 
               icon={Star} 
               label={t('dock.favorites')} 
-              isActive={activeCategory === 'favorites'}
-              onClick={() => handleCategoryClick('favorites')}
+              isActive={activeCategory === DASHBOARD_FAVORITES_CATEGORY}
+              onClick={() => handleCategoryClick(DASHBOARD_FAVORITES_CATEGORY)}
               className="text-amber-400 hover:text-amber-300"
             />
           )}
@@ -63,8 +69,8 @@ export const Dock: React.FC = () => {
             <DockItem
               key={cat.id}
               label={cat.title}
-              isActive={activeCategory === cat.title}
-              onClick={() => handleCategoryClick(cat.title)}
+              isActive={activeCategory === cat.category || activeCategory === cat.title}
+              onClick={() => handleCategoryClick(cat.category)}
               iconName={typeof cat.icon === 'string' ? cat.icon : undefined}
             />
           ))}
@@ -96,6 +102,7 @@ export const Dock: React.FC = () => {
         releaseVersion={releaseVersion}
         gitSha={gitSha}
         buildDate={buildDate}
+        buildTime={buildTime}
         buildNumber={buildNumber}
         currentVersion={displayVersion}
       />
@@ -120,10 +127,10 @@ const DockItem = React.memo<DockItemProps>(({ icon: Icon, iconName, label, isAct
           onClick={onClick}
           data-active={isActive ? 'true' : 'false'}
           className={cn(
-            "dock-item relative group flex items-center justify-center h-9 min-w-[2.5rem] px-3 rounded-full transition-colors duration-200 shrink-0",
+            "dock-item relative group flex items-center justify-center h-10 min-w-[2.75rem] px-3 rounded-full transition-colors duration-200 shrink-0 border",
             isActive 
-              ? "bg-primary/12 text-foreground ring-1 ring-primary/15 shadow-[0_0_16px_-10px_hsl(var(--glow)/0.55)]" 
-            : "text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--glass-highlight)/0.04)] border border-transparent dock-item-inactive",
+              ? "bg-primary/14 text-foreground border-primary/22 ring-1 ring-primary/18 shadow-[0_0_18px_-10px_hsl(var(--glow)/0.55)]" 
+            : "text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--glass-highlight)/0.05)] border-[hsl(var(--glass-border)/0.08)] dock-item-inactive",
             className
           )}
         >
@@ -134,8 +141,8 @@ const DockItem = React.memo<DockItemProps>(({ icon: Icon, iconName, label, isAct
           <div className={cn("transition-transform duration-200 flex items-center gap-1.5", isActive && "scale-[1.02]")}>
              <DynamicIcon 
                icon={iconName} 
-               fallback={Icon ? <Icon className="h-4 w-4" /> : <DynamicIcon icon="Folder" className="h-4 w-4" />}
-               className="h-4 w-4 stroke-[2.5px]"
+               fallback={Icon ? <Icon className="h-4.5 w-4.5" /> : <DynamicIcon icon="Folder" className="h-4.5 w-4.5" />}
+               className="dock-item-icon h-4.5 w-4.5 stroke-[2.4px]"
              />
              {isActive && <span className="text-[10px] font-bold tracking-[0.18em] uppercase hidden sm:block whitespace-nowrap">{label}</span>}
           </div>
