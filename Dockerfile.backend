@@ -6,39 +6,31 @@ WORKDIR /app
 ARG BUILD_VERSION
 ARG BUILD_DATE
 ARG GIT_SHA
+ARG BUILD_TIME
+ARG BUILD_NUMBER
 
-ENV BUILD_VERSION=$BUILD_VERSION
-ENV BUILD_DATE=$BUILD_DATE
-ENV GIT_SHA=$GIT_SHA
+RUN apk add --no-cache python3 make g++ git
 
-RUN apk add --no-cache python3 make g++
+COPY package.json ./package.json
+COPY backend/package*.json ./backend/
+RUN cd backend && npm install
 
-COPY backend/package*.json ./
-COPY scripts/check-node-version.js /scripts/check-node-version.js
-RUN npm install
-
-COPY backend/ .
-RUN npm run build
+COPY . .
+RUN node scripts/resolve-build-metadata.js --package-file package.json --output-env build-metadata.env
+RUN cd backend && npm run build
 
 # Production Stage
 FROM docker.io/library/node:22-alpine
 
 WORKDIR /app
 
-ARG BUILD_VERSION
-ARG BUILD_DATE
-ARG GIT_SHA
-
-ENV BUILD_VERSION=$BUILD_VERSION
-ENV BUILD_DATE=$BUILD_DATE
-ENV GIT_SHA=$GIT_SHA
-
 COPY backend/package*.json ./
 RUN apk add --no-cache python3 make g++ su-exec && \
     npm install --only=production && \
     apk del python3 make g++
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/backend/dist ./dist
+COPY --from=builder /app/build-metadata.env ./build-metadata.env
 
 RUN mkdir -p /app/data /app/uploads/icons && \
     chown -R node:node /app/data /app/uploads && \

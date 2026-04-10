@@ -37,3 +37,6 @@ Thumbs.db
 
 # Backups (local only)
 backups/
+
+# Generated build metadata
+build-metadata.env

@@ -3,4 +3,6 @@ window.RUNTIME_CONFIG = {
   BUILD_VERSION: '',
   BUILD_DATE: '',
   GIT_SHA: '',
+  BUILD_TIME: '',
+  BUILD_NUMBER: '',
 };

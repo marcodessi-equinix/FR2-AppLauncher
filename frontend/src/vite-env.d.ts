@@ -6,5 +6,7 @@ interface Window {
     BUILD_VERSION?: string;
     BUILD_DATE?: string;
     GIT_SHA?: string;
+    BUILD_TIME?: string;
+    BUILD_NUMBER?: string;
   };
 }

@@ -15,7 +15,6 @@ backend/dist/
 .env.*.local
 
 # Git
-.git/
 .gitignore
 
 # Runtime data (mounted via volumes)

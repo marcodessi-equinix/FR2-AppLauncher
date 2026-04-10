@@ -17,11 +17,27 @@ export interface PublicVersionInfo {
   gitSha: string;
 }
 
+interface EmbeddedBuildMetadata {
+  buildVersion?: string;
+  buildDate?: string;
+  gitSha?: string;
+  buildTime?: string;
+  buildNumber?: string;
+}
+
 const UNKNOWN_VALUE = 'unknown';
 
-const repoRoot = path.resolve(runtimeConfig.backendRoot, '..');
-const rootPackageJsonPath = path.join(repoRoot, 'package.json');
-const backendPackageJsonPath = path.join(runtimeConfig.backendRoot, 'package.json');
+const workspaceRoot = path.resolve(runtimeConfig.backendRoot, '..');
+const packageVersionCandidates = [
+  path.join(workspaceRoot, 'package.json'),
+  path.join(runtimeConfig.backendRoot, 'package.json'),
+];
+const metadataFileCandidates = [
+  path.join(runtimeConfig.backendRoot, 'build-metadata.env'),
+  path.join(workspaceRoot, 'build-metadata.env'),
+];
+
+let embeddedMetadataCache: EmbeddedBuildMetadata | null | undefined;
 
 const readPackageVersion = (filePath: string): string | null => {
   if (!fs.existsSync(filePath)) {
@@ -52,10 +68,91 @@ const normalizeValue = (value: string | undefined): string => {
   return trimmed || UNKNOWN_VALUE;
 };
 
+const normalizeGitSha = (value: string | undefined): string => {
+  const trimmed = value?.trim() || '';
+  return trimmed ? trimmed.slice(0, 12) : UNKNOWN_VALUE;
+};
+
+const parseEmbeddedMetadata = (filePath: string): EmbeddedBuildMetadata => {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const metadata: EmbeddedBuildMetadata = {};
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = trimmedLine.indexOf('=');
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = trimmedLine.slice(0, separatorIndex).trim();
+    let value = trimmedLine.slice(separatorIndex + 1).trim();
+
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    switch (key) {
+      case 'IMAGE_BUILD_VERSION':
+        metadata.buildVersion = value;
+        break;
+      case 'IMAGE_BUILD_DATE':
+        metadata.buildDate = value;
+        break;
+      case 'IMAGE_GIT_SHA':
+        metadata.gitSha = value;
+        break;
+      case 'IMAGE_BUILD_TIME':
+        metadata.buildTime = value;
+        break;
+      case 'IMAGE_BUILD_NUMBER':
+        metadata.buildNumber = value;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return metadata;
+};
+
+const readEmbeddedMetadata = (): EmbeddedBuildMetadata => {
+  if (embeddedMetadataCache !== undefined) {
+    return embeddedMetadataCache || {};
+  }
+
+  for (const candidate of metadataFileCandidates) {
+    if (!fs.existsSync(candidate)) {
+      continue;
+    }
+
+    embeddedMetadataCache = parseEmbeddedMetadata(candidate);
+    return embeddedMetadataCache;
+  }
+
+  embeddedMetadataCache = null;
+  return {};
+};
+
+const derivePackageVersion = (): string => {
+  for (const candidate of packageVersionCandidates) {
+    const version = readPackageVersion(candidate);
+    if (version) {
+      return normalizeReleaseVersion(version);
+    }
+  }
+
+  return UNKNOWN_VALUE;
+};
+
 const runGit = (args: string[]): string => {
   try {
+    const gitRoot = fs.existsSync(path.join(workspaceRoot, '.git')) ? workspaceRoot : runtimeConfig.backendRoot;
     return execFileSync('git', args, {
-      cwd: repoRoot,
+      cwd: gitRoot,
       stdio: ['ignore', 'pipe', 'ignore'],
     }).toString().trim();
   } catch {
@@ -63,43 +160,33 @@ const runGit = (args: string[]): string => {
   }
 };
 
-const isProductionRuntime = runtimeConfig.nodeEnv === 'production';
-
 const resolveReleaseVersion = (): string => {
   const envVersion = process.env.BUILD_VERSION;
   if (envVersion?.trim()) {
     return normalizeReleaseVersion(envVersion);
   }
 
-  if (isProductionRuntime) {
-    return UNKNOWN_VALUE;
+  const embeddedVersion = readEmbeddedMetadata().buildVersion;
+  if (embeddedVersion?.trim()) {
+    return normalizeReleaseVersion(embeddedVersion);
   }
 
-  const rootVersion = readPackageVersion(rootPackageJsonPath);
-  if (rootVersion) {
-    return normalizeReleaseVersion(rootVersion);
-  }
-
-  const backendVersion = readPackageVersion(backendPackageJsonPath);
-  if (backendVersion) {
-    return normalizeReleaseVersion(backendVersion);
-  }
-
-  return 'v0.1.0';
+  return derivePackageVersion();
 };
 
 const resolveGitSha = (): string => {
   const envSha = process.env.GIT_SHA;
   if (envSha?.trim()) {
-    return envSha.trim().slice(0, 12);
+    return normalizeGitSha(envSha);
   }
 
-  if (isProductionRuntime) {
-    return UNKNOWN_VALUE;
+  const embeddedGitSha = readEmbeddedMetadata().gitSha;
+  if (embeddedGitSha?.trim()) {
+    return normalizeGitSha(embeddedGitSha);
   }
 
   const gitSha = runGit(['rev-parse', '--short=7', 'HEAD']);
-  return gitSha || UNKNOWN_VALUE;
+  return normalizeGitSha(gitSha);
 };
 
 const resolveBuildNumber = (): string => {
@@ -112,8 +199,9 @@ const resolveBuildNumber = (): string => {
     return explicitBuildNumber.trim();
   }
 
-  if (isProductionRuntime) {
-    return UNKNOWN_VALUE;
+  const embeddedBuildNumber = readEmbeddedMetadata().buildNumber;
+  if (embeddedBuildNumber?.trim()) {
+    return embeddedBuildNumber.trim();
   }
 
   return runGit(['rev-list', '--count', 'HEAD']) || UNKNOWN_VALUE;
@@ -124,11 +212,12 @@ const resolveBuildDate = (): string => {
     return process.env.BUILD_DATE.trim();
   }
 
-  if (isProductionRuntime) {
-    return UNKNOWN_VALUE;
+  const embeddedBuildDate = readEmbeddedMetadata().buildDate;
+  if (embeddedBuildDate?.trim()) {
+    return embeddedBuildDate.trim();
   }
 
-  return new Date().toISOString().slice(0, 10);
+  return runtimeConfig.nodeEnv === 'production' ? UNKNOWN_VALUE : new Date().toISOString();
 };
 
 const resolveBuildTime = (): string => {
@@ -136,11 +225,18 @@ const resolveBuildTime = (): string => {
     return process.env.BUILD_TIME.trim();
   }
 
-  if (isProductionRuntime) {
-    return UNKNOWN_VALUE;
+  const embeddedBuildTime = readEmbeddedMetadata().buildTime;
+  if (embeddedBuildTime?.trim()) {
+    return embeddedBuildTime.trim();
   }
 
-  return new Date().toISOString().slice(11, 19);
+  const buildDate = resolveBuildDate();
+  const isoTimestampMatch = buildDate.match(/T(\d{2}:\d{2}:\d{2})/);
+  if (isoTimestampMatch) {
+    return `${isoTimestampMatch[1]} UTC`;
+  }
+
+  return runtimeConfig.nodeEnv === 'production' ? UNKNOWN_VALUE : `${new Date().toISOString().slice(11, 19)} UTC`;
 };
 
 export const getBuildInfo = (): BuildInfo => {

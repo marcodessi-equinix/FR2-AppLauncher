@@ -8,10 +8,12 @@
     <title>AppLauncher</title>
     <meta name="application-name" content="AppLauncher" />
     <meta name="description" content="Self-hosted dashboard for internal links, tools, and services" />
+    <script src="/runtime-config.js"></script>
   </head>
   <body>
     <div id="root"></div>
-    <script src="/runtime-config.js"></script>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      import '/src/main.tsx';
+    </script>
   </body>
 </html>

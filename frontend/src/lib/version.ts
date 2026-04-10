@@ -14,6 +14,8 @@ interface RuntimeConfigMeta {
   BUILD_VERSION?: string;
   BUILD_DATE?: string;
   GIT_SHA?: string;
+  BUILD_TIME?: string;
+  BUILD_NUMBER?: string;
 }
 
 interface VersionApiPayload {
@@ -25,6 +27,7 @@ interface VersionApiPayload {
 const UNKNOWN_VALUE = 'unknown';
 const DEFAULT_API_URL = '/api';
 const INVALID_VALUES = new Set(['', 'local', 'not available']);
+const INVALID_VERSION_VALUES = new Set(['', 'local', 'not available', 'unknown-local', 'v0.1.0']);
 const listeners = new Set<() => void>();
 
 let initializationPromise: Promise<AppVersionInfo> | null = null;
@@ -35,8 +38,13 @@ const isInvalidValue = (value: string | undefined): boolean => {
   return INVALID_VALUES.has(normalized);
 };
 
+const isInvalidVersionValue = (value: string | undefined): boolean => {
+  const normalized = value?.trim().toLowerCase() || '';
+  return INVALID_VERSION_VALUES.has(normalized);
+};
+
 const normalizeVersion = (value: string | undefined): string => {
-  if (isInvalidValue(value)) {
+  if (isInvalidVersionValue(value)) {
     return UNKNOWN_VALUE;
   }
 
@@ -70,8 +78,18 @@ const getApiBaseUrl = (): string => {
   return configured === UNKNOWN_VALUE ? DEFAULT_API_URL : configured.replace(/\/$/, '');
 };
 
+const getCompactBuildDate = (value: string): string => {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})T/);
+  return isoMatch ? isoMatch[1] : trimmed;
+};
+
 const createDisplayVersion = (info: Omit<AppVersionInfo, 'displayVersion'>): string => {
-  const parts = [info.releaseVersion, info.gitSha, info.buildDate].filter((value) => value !== UNKNOWN_VALUE);
+  const parts = [
+    info.releaseVersion,
+    info.gitSha,
+    info.buildDate === UNKNOWN_VALUE ? UNKNOWN_VALUE : getCompactBuildDate(info.buildDate),
+  ].filter((value) => value !== UNKNOWN_VALUE);
   return parts.length ? parts.join(' | ') : UNKNOWN_VALUE;
 };
 
@@ -96,6 +114,8 @@ const readRuntimeVersionInfo = (): AppVersionInfo => {
     releaseVersion: runtimeConfig.BUILD_VERSION,
     buildDate: runtimeConfig.BUILD_DATE,
     gitSha: runtimeConfig.GIT_SHA,
+    buildTime: runtimeConfig.BUILD_TIME,
+    buildNumber: runtimeConfig.BUILD_NUMBER,
   });
 };
 

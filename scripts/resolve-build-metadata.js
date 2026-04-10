@@ -1,0 +1,83 @@
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+const args = process.argv.slice(2);
+
+const getArgValue = (flag, fallback) => {
+  const index = args.indexOf(flag);
+  if (index === -1) {
+    return fallback;
+  }
+
+  return args[index + 1] || fallback;
+};
+
+const packageFile = path.resolve(process.cwd(), getArgValue('--package-file', 'package.json'));
+const outputEnv = path.resolve(process.cwd(), getArgValue('--output-env', 'build-metadata.env'));
+const repoRoot = path.dirname(packageFile);
+
+const readPackageVersion = () => {
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packageFile, 'utf8'));
+    const version = typeof packageJson.version === 'string' ? packageJson.version.trim() : '';
+    return version || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+};
+
+const normalizeVersion = (value) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed || trimmed === 'unknown') {
+    return 'unknown';
+  }
+
+  return trimmed.startsWith('v') ? trimmed : `v${trimmed}`;
+};
+
+const runGit = (gitArgs) => {
+  try {
+    return execFileSync('git', gitArgs, {
+      cwd: repoRoot,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim();
+  } catch {
+    return '';
+  }
+};
+
+const utcBuildDate = process.env.BUILD_DATE && process.env.BUILD_DATE.trim()
+  ? process.env.BUILD_DATE.trim()
+  : new Date().toISOString();
+
+const normalizedBuildDate = utcBuildDate;
+const buildTimeFromDate = normalizedBuildDate.match(/T(\d{2}:\d{2}:\d{2})/);
+
+const buildMetadata = {
+  buildVersion: normalizeVersion(process.env.BUILD_VERSION || readPackageVersion()),
+  buildDate: normalizedBuildDate,
+  gitSha: String(process.env.GIT_SHA || runGit(['rev-parse', '--short=7', 'HEAD']) || 'unknown').trim().slice(0, 12) || 'unknown',
+  buildTime: String(process.env.BUILD_TIME || (buildTimeFromDate ? `${buildTimeFromDate[1]} UTC` : 'unknown')).trim() || 'unknown',
+  buildNumber: String(
+    process.env.BUILD_NUMBER
+      || process.env.GITHUB_RUN_NUMBER
+      || process.env.CI_PIPELINE_IID
+      || process.env.CI_PIPELINE_ID
+      || runGit(['rev-list', '--count', 'HEAD'])
+      || 'unknown'
+  ).trim() || 'unknown',
+};
+
+const shellEscape = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`;
+
+const output = [
+  `IMAGE_BUILD_VERSION=${shellEscape(buildMetadata.buildVersion)}`,
+  `IMAGE_BUILD_DATE=${shellEscape(buildMetadata.buildDate)}`,
+  `IMAGE_GIT_SHA=${shellEscape(buildMetadata.gitSha)}`,
+  `IMAGE_BUILD_TIME=${shellEscape(buildMetadata.buildTime)}`,
+  `IMAGE_BUILD_NUMBER=${shellEscape(buildMetadata.buildNumber)}`,
+  '',
+].join('\n');
+
+fs.writeFileSync(outputEnv, output, 'utf8');

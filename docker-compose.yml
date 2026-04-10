@@ -6,9 +6,11 @@ services:
       context: .
       dockerfile: Dockerfile.backend
       args:
-        BUILD_VERSION: ${BUILD_VERSION:?BUILD_VERSION is required}
-        BUILD_DATE: ${BUILD_DATE:?BUILD_DATE is required}
-        GIT_SHA: ${GIT_SHA:?GIT_SHA is required}
+        BUILD_VERSION: ${BUILD_VERSION:-}
+        BUILD_DATE: ${BUILD_DATE:-}
+        GIT_SHA: ${GIT_SHA:-}
+        BUILD_TIME: ${BUILD_TIME:-}
+        BUILD_NUMBER: ${BUILD_NUMBER:-}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -19,9 +21,11 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-auto}
       ALLOW_INSECURE_DEFAULTS: "false"
-      BUILD_VERSION: ${BUILD_VERSION:?BUILD_VERSION is required}
-      BUILD_DATE: ${BUILD_DATE:?BUILD_DATE is required}
-      GIT_SHA: ${GIT_SHA:?GIT_SHA is required}
+      BUILD_VERSION: ${BUILD_VERSION:-}
+      BUILD_DATE: ${BUILD_DATE:-}
+      GIT_SHA: ${GIT_SHA:-}
+      BUILD_TIME: ${BUILD_TIME:-}
+      BUILD_NUMBER: ${BUILD_NUMBER:-}
     volumes:
       - applauncher-data:/app/data
       - applauncher-uploads:/app/uploads
@@ -41,18 +45,22 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        BUILD_VERSION: ${BUILD_VERSION:?BUILD_VERSION is required}
-        BUILD_DATE: ${BUILD_DATE:?BUILD_DATE is required}
-        GIT_SHA: ${GIT_SHA:?GIT_SHA is required}
+        BUILD_VERSION: ${BUILD_VERSION:-}
+        BUILD_DATE: ${BUILD_DATE:-}
+        GIT_SHA: ${GIT_SHA:-}
+        BUILD_TIME: ${BUILD_TIME:-}
+        BUILD_NUMBER: ${BUILD_NUMBER:-}
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     environment:
       API_URL: /api
-      BUILD_VERSION: ${BUILD_VERSION:?BUILD_VERSION is required}
-      BUILD_DATE: ${BUILD_DATE:?BUILD_DATE is required}
-      GIT_SHA: ${GIT_SHA:?GIT_SHA is required}
+      BUILD_VERSION: ${BUILD_VERSION:-}
+      BUILD_DATE: ${BUILD_DATE:-}
+      GIT_SHA: ${GIT_SHA:-}
+      BUILD_TIME: ${BUILD_TIME:-}
+      BUILD_NUMBER: ${BUILD_NUMBER:-}
     expose:
       - "80"
     ports:

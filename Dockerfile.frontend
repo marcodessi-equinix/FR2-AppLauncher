@@ -6,39 +6,33 @@ WORKDIR /app
 ARG BUILD_VERSION
 ARG BUILD_DATE
 ARG GIT_SHA
+ARG BUILD_TIME
+ARG BUILD_NUMBER
 
-ENV BUILD_VERSION=$BUILD_VERSION
-ENV BUILD_DATE=$BUILD_DATE
-ENV GIT_SHA=$GIT_SHA
+RUN apk add --no-cache git
 
-COPY package.json /package.json
-COPY frontend/package*.json ./
-RUN npm install --legacy-peer-deps
+COPY package.json ./package.json
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install --legacy-peer-deps
 
-COPY frontend/ ./
-RUN npm run build
+COPY . .
+RUN node scripts/resolve-build-metadata.js --package-file package.json --output-env build-metadata.env
+RUN cd frontend && npm run build
 
 # Runtime stage
 FROM docker.io/library/nginx:alpine AS runtime
 
 WORKDIR /app
-
-ARG BUILD_VERSION
-ARG BUILD_DATE
-ARG GIT_SHA
-
-ENV BUILD_VERSION=$BUILD_VERSION
-ENV BUILD_DATE=$BUILD_DATE
-ENV GIT_SHA=$GIT_SHA
 ENV API_URL=/api
 
-COPY --from=builder /app/dist /app/dist
+COPY --from=builder /app/frontend/dist /app/dist
+COPY --from=builder /app/build-metadata.env /app/build-metadata.env
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/frontend-entrypoint.sh /usr/local/bin/frontend-entrypoint.sh
 
 RUN rm -rf /usr/share/nginx/html && \
-	ln -s /app/dist /usr/share/nginx/html && \
-	chmod +x /usr/local/bin/frontend-entrypoint.sh
+    ln -s /app/dist /usr/share/nginx/html && \
+    chmod +x /usr/local/bin/frontend-entrypoint.sh
 
 EXPOSE 80
 

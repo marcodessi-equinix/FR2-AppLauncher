@@ -141,17 +141,21 @@ If you change `PROXY_FRONTEND_ALIAS`, use that value in NPM instead.
 | `PROXY_FRONTEND_ALIAS` | Internal DNS alias used by the frontend on the proxy network. | `applauncher-frontend` |
 | `DATABASE_PATH` | Optional SQLite path override inside the backend container. | `/app/data/applauncher.db` |
 | `UPLOAD_PATH` | Optional upload path override inside the backend container. | `/app/uploads/icons` |
-| `BUILD_VERSION` | Required deployment version shown in UI and API. | none |
-| `BUILD_DATE` | Required deployment build date shown in UI and API. | none |
-| `GIT_SHA` | Required deployment Git SHA shown in UI and API. | none |
-| `BUILD_TIME` | Optional build time shown in the version dialog. | auto in local development |
-| `BUILD_NUMBER` | Optional CI build number shown in the version dialog. | auto in local development |
+| `BUILD_VERSION` | Optional build/release version override. | auto from root `package.json` |
+| `BUILD_DATE` | Optional build timestamp override. | auto from build time in UTC ISO format |
+| `GIT_SHA` | Optional Git SHA override. | auto from git when available |
+| `BUILD_TIME` | Optional build time override for the version dialog helper. | derived from build timestamp |
+| `BUILD_NUMBER` | Optional CI build number override. | git commit count or CI metadata when available |
 
 Notes:
 
 - `COOKIE_SECURE=auto` honors `X-Forwarded-Proto` when present and otherwise follows the incoming request.
 - In proxy mode, `FRONTEND_URL` should be the exact external HTTPS URL served to users.
 - `docker-compose.proxy.yml` intentionally has no `ports:` section for the frontend.
+- Version metadata is derived automatically during image build from root `package.json`, git metadata, and the UTC build timestamp.
+- `BUILD_VERSION`, `BUILD_DATE`, and `GIT_SHA` remain supported as optional overrides only; normal installs do not need them in `.env`.
+- `.git` is intentionally included in the Docker build context so VM builds from a cloned repository can embed the current commit SHA automatically.
+- If the build context has no `.git` directory, the app still derives the version from `package.json`; Git SHA falls back to `unknown`.
 - The frontend reads `/runtime-config.js` first and falls back to `/api/version`, so version metadata stays correct across direct and proxy deployments.
 
 ## Architecture
@@ -220,6 +224,32 @@ Proxy mode:
 ```bash
 docker compose -f docker-compose.proxy.yml logs -f
 ```
+
+### Verify Deployed Version
+
+Direct mode:
+
+```bash
+curl http://localhost:9020/api/version
+```
+
+Proxy mode:
+
+```bash
+curl https://applauncher.example.com/api/version
+```
+
+Expected response shape:
+
+```json
+{
+  "version": "v2.1.0",
+  "buildDate": "2026-04-10T06:13:29.061Z",
+  "gitSha": "585a97c"
+}
+```
+
+The same metadata is also exposed in the UI through `runtime-config.js` and the version dialog in the dock.
 
 ### Backup
 
