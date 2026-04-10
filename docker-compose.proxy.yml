@@ -80,7 +80,7 @@ networks:
     driver: bridge
   proxy:
     external: true
-    name: ${PROXY_NETWORK:-proxy}
+    name: ${PROXY_NETWORK:-nginx-proxy-manager_default}
 
 volumes:
   applauncher-data:
