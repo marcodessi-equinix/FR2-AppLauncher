@@ -1,6 +1,19 @@
 #!/bin/sh
 set -eu
 
+# ── 1. Detect the container DNS resolver ────────────────────────────
+#    Docker uses 127.0.0.11, Podman/aardvark-dns uses the network
+#    gateway (e.g. 10.89.0.1).  We read the first nameserver from
+#    /etc/resolv.conf so the nginx config works on BOTH runtimes.
+RESOLVER=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf 2>/dev/null || true)
+RESOLVER=${RESOLVER:-127.0.0.11}
+
+echo "frontend-entrypoint: detected DNS resolver ${RESOLVER}"
+
+# Replace the __RESOLVER__ placeholder in the nginx config.
+sed -i "s/__RESOLVER__/${RESOLVER}/g" /etc/nginx/conf.d/default.conf
+
+# ── 2. Generate runtime-config.js ───────────────────────────────────
 if [ -f /app/build-metadata.env ]; then
   # shellcheck disable=SC1091
   . /app/build-metadata.env
