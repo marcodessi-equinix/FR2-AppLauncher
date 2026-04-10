@@ -80,7 +80,7 @@ networks:
     driver: bridge
   proxy:
     external: true
-    name: ${NPM_NETWORK:?NPM_NETWORK is required for proxy deployments}
+    name: ${PROXY_NETWORK:-proxy}
 
 volumes:
   applauncher-data:
