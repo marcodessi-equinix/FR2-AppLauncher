@@ -55,13 +55,10 @@ export const ManageGroupModal: React.FC<ManageGroupModalProps> = ({ isOpen, onCl
     const zeroBasedOrder = clampedPosition - 1;
 
     try {
-      let savedGroup: Group;
       if (group) {
-        const response = await api.put<Group>(`/groups/${group.id}`, { title, order: zeroBasedOrder, icon });
-        savedGroup = response.data;
+        await api.put<Group>(`/groups/${group.id}`, { title, order: zeroBasedOrder, icon });
       } else {
-        const response = await api.post<Group>('/groups', { title, order: zeroBasedOrder, icon });
-        savedGroup = response.data;
+        await api.post<Group>('/groups', { title, order: zeroBasedOrder, icon });
       }
       // Refetch dashboard data to get the fully normalized order from backend
       queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
