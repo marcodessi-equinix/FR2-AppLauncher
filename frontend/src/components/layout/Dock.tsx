@@ -141,8 +141,8 @@ const DockItem = React.memo<DockItemProps>(({ icon: Icon, iconName, label, isAct
           <div className={cn("transition-transform duration-200 flex items-center gap-1.5", isActive && "scale-[1.02]")}>
              <DynamicIcon 
                icon={iconName} 
-               fallback={Icon ? <Icon className="h-4.5 w-4.5" /> : <DynamicIcon icon="Folder" className="h-4.5 w-4.5" />}
-               className="dock-item-icon h-4.5 w-4.5 stroke-[2.4px]"
+               fallback={Icon ? <Icon className="h-[18px] w-[18px]" /> : <DynamicIcon icon="Folder" className="h-[18px] w-[18px]" />}
+               className="dock-item-icon h-[18px] w-[18px] stroke-[2.4px]"
              />
              {isActive && <span className="text-[10px] font-bold tracking-[0.18em] uppercase hidden sm:block whitespace-nowrap">{label}</span>}
           </div>
