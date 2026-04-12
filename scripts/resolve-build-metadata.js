@@ -17,6 +17,37 @@ const packageFile = path.resolve(process.cwd(), getArgValue('--package-file', 'p
 const outputEnv = path.resolve(process.cwd(), getArgValue('--output-env', 'build-metadata.env'));
 const repoRoot = path.dirname(packageFile);
 
+/** Read existing build-metadata.env as fallback values for when git is unavailable. */
+const readExistingMetadata = () => {
+  const fallback = { buildVersion: '', buildDate: '', gitSha: '', buildTime: '', buildNumber: '' };
+  try {
+    if (!fs.existsSync(outputEnv)) return fallback;
+    const raw = fs.readFileSync(outputEnv, 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const sep = trimmed.indexOf('=');
+      if (sep <= 0) continue;
+      const key = trimmed.slice(0, sep).trim();
+      let val = trimmed.slice(sep + 1).trim();
+      if ((val.startsWith("'") && val.endsWith("'")) || (val.startsWith('"') && val.endsWith('"'))) {
+        val = val.slice(1, -1);
+      }
+      if (!val || val === 'unknown') continue;
+      switch (key) {
+        case 'IMAGE_BUILD_VERSION': fallback.buildVersion = val; break;
+        case 'IMAGE_BUILD_DATE':    fallback.buildDate = val;    break;
+        case 'IMAGE_GIT_SHA':       fallback.gitSha = val;       break;
+        case 'IMAGE_BUILD_TIME':    fallback.buildTime = val;    break;
+        case 'IMAGE_BUILD_NUMBER':  fallback.buildNumber = val;  break;
+      }
+    }
+  } catch { /* ignore */ }
+  return fallback;
+};
+
+const existing = readExistingMetadata();
+
 const readPackageVersion = () => {
   try {
     const packageJson = JSON.parse(fs.readFileSync(packageFile, 'utf8'));
@@ -57,14 +88,15 @@ const buildTimeFromDate = normalizedBuildDate.match(/T(\d{2}:\d{2}:\d{2})/);
 const buildMetadata = {
   buildVersion: normalizeVersion(process.env.BUILD_VERSION || readPackageVersion()),
   buildDate: normalizedBuildDate,
-  gitSha: String(process.env.GIT_SHA || runGit(['rev-parse', '--short=7', 'HEAD']) || 'unknown').trim().slice(0, 12) || 'unknown',
-  buildTime: String(process.env.BUILD_TIME || (buildTimeFromDate ? `${buildTimeFromDate[1]} UTC` : 'unknown')).trim() || 'unknown',
+  gitSha: String(process.env.GIT_SHA || runGit(['rev-parse', '--short=7', 'HEAD']) || existing.gitSha || 'unknown').trim().slice(0, 12) || 'unknown',
+  buildTime: String(process.env.BUILD_TIME || (buildTimeFromDate ? `${buildTimeFromDate[1]} UTC` : '') || existing.buildTime || 'unknown').trim() || 'unknown',
   buildNumber: String(
     process.env.BUILD_NUMBER
       || process.env.GITHUB_RUN_NUMBER
       || process.env.CI_PIPELINE_IID
       || process.env.CI_PIPELINE_ID
       || runGit(['rev-list', '--count', 'HEAD'])
+      || existing.buildNumber
       || 'unknown'
   ).trim() || 'unknown',
 };
