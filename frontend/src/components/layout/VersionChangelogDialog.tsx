@@ -115,7 +115,10 @@ export const VersionChangelogDialog: React.FC<VersionChangelogDialogProps> = ({
                     </div>
                     <DialogTitle className="space-y-3">
                       <div className="text-[2rem] font-black tracking-tight text-foreground md:text-[2.25rem]">
-                        {releaseVersion}
+                        {currentVersion}
+                      </div>
+                      <div className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground/72">
+                        {t('version.releaseLabel')}: {releaseVersion}
                       </div>
                       <div className="max-w-3xl text-base font-semibold leading-snug tracking-tight text-foreground/90 md:text-[1.15rem]">
                         {currentEntry?.title || t('version.latestReleaseFallback')}

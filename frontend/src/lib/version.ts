@@ -137,7 +137,12 @@ const readRuntimeVersionInfo = (): AppVersionInfo => {
 };
 
 const hasResolvedProductionFields = (info: AppVersionInfo): boolean => {
-  return info.releaseVersion !== UNKNOWN_VALUE && info.buildDate !== UNKNOWN_VALUE && info.gitSha !== UNKNOWN_VALUE;
+  return (
+    info.releaseVersion !== UNKNOWN_VALUE
+    && info.buildDate !== UNKNOWN_VALUE
+    && info.gitSha !== UNKNOWN_VALUE
+    && info.buildNumber !== UNKNOWN_VALUE
+  );
 };
 
 const emitChange = () => {
